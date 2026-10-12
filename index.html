@@ -21,58 +21,61 @@
    Views: "All spots" is one card per place (photo, short description, your 1-5 rating, everyone's scores),
    "Group picks" ranks places into tiers, "Reservations" lists what still needs booking, "Itinerary" is Wanderlog's day-by-day plan, "Map" pins every place. */
 :root {
-  --bg: #f7f3ec;
-  --surface: #fffdf9;
-  --surface-2: #f1ebe1;
-  --line: #e6ddcf;
-  --ink: #201b16;
-  --muted: #6f665b;
-  --accent: #c2410c;
-  --accent-soft: #fdebdc;
-  --rosa: #b8125a;
-  --rosa-soft: #fde4ef;
+  /* Travel palette: sky and sea for the page and the group's verdict, sunset for your own ratings. */
+  --bg: #f1f6fa;
+  --surface: #ffffff;
+  --surface-2: #e6eef5;
+  --line: #d2dfe9;
+  --ink: #0e2235;
+  --muted: #546a7e;
+  --accent: #0b6fa0;
+  --accent-soft: #e0f0f8;
   --ok: #1d7a46;
   --ok-soft: #e1f3e8;
   --warn: #8a5300;
   --warn-soft: #fdf0d3;
   --hot: #b42318;
   --hot-soft: #fde6e3;
-  /* 1-5 score scale, light to deep marigold */
-  --s1: #ece4d8; --s1-fg: #5f574c;
-  --s2: #f8dfb8; --s2-fg: #5c3d00;
-  --s3: #f5bf6a; --s3-fg: #3d2800;
-  --s4: #ea8a1f; --s4-fg: #241400;
+  /* 1-5 score scale: sand to sunset */
+  --s1: #ece8e1; --s1-fg: #5b5f66;
+  --s2: #fde3c6; --s2-fg: #6b3a0a;
+  --s3: #fbbd87; --s3-fg: #4a2208;
+  --s4: #f3864f; --s4-fg: #2a1004;
   --s5: #c2410c; --s5-fg: #ffffff;
-  /* Group verdict, an ordered scale: rosa steps for the "go" tiers, neutrals for skip / not enough votes */
-  --v-must: #6d0a36; --v-def: #b8125a; --v-prob: #e0679a; --v-maybe: #f3b9d1; --v-skip: #b3aa9e; --v-wait: #e6ddcf;
-  --star: #d97706;
-  --shadow: 0 1px 2px rgba(32,27,22,.05), 0 6px 20px rgba(32,27,22,.05);
+  /* Group verdict, an ordered scale: ocean steps for the "go" tiers, neutrals for skip / not enough votes */
+  --v-must: #0a2e4d; --v-def: #0b6fa0; --v-prob: #4fa9d4; --v-maybe: #a9d6ec; --v-skip: #b6c3ce; --v-wait: #d2dfe9;
+  --v-soft: #e0f0f8; --v-on: #ffffff; /* light pill background, and text on the darker verdict fills */
+  --star: #f59e0b;
+  --shade: 6,16,28; /* navy used for photo shading and overlays */
+  --shadow: 0 1px 2px rgba(14,34,53,.05), 0 6px 20px rgba(14,34,53,.07);
   --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display: "Fraunces", Georgia, serif;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #15120e; --surface: #1f1b16; --surface-2: #2a251f; --line: #3a332b; --ink: #f4eee5; --muted: #a99f92;
-    --accent: #f59e4b; --accent-soft: #3b2616; --rosa: #ff7fb2; --rosa-soft: #3d1527;
-    --ok: #63d394; --ok-soft: #173323; --warn: #f2bb55; --warn-soft: #3a2c10; --hot: #ff8f80; --hot-soft: #3d1a16;
-    --s1: #2f2922; --s1-fg: #b3a99c; --s2: #4a3720; --s2-fg: #f3d9b0; --s3: #7a5212; --s3-fg: #ffe9c4;
-    --s4: #c46f12; --s4-fg: #1a0f00; --s5: #f08a2c; --s5-fg: #1a0f00;
-    --v-must: #ffc4dd; --v-def: #ff7fb2; --v-prob: #c4467d; --v-maybe: #6b2c48; --v-skip: #6f665b; --v-wait: #3a332b;
+    --bg: #08131e; --surface: #0e1d2b; --surface-2: #14283a; --line: #213a50; --ink: #e5eef6; --muted: #8fa5b8;
+    --accent: #4cc0e8; --accent-soft: #0f3047;
+    --ok: #63d394; --ok-soft: #133226; --warn: #f2bb55; --warn-soft: #33290f; --hot: #ff8f80; --hot-soft: #3a1a18;
+    --s1: #1b2a38; --s1-fg: #a3b3c2; --s2: #3d2c20; --s2-fg: #f8d7b8; --s3: #7c4321; --s3-fg: #ffe0c6;
+    --s4: #e07a45; --s4-fg: #1c0b03; --s5: #ff9b62; --s5-fg: #1c0b03;
+    --v-must: #dff3ff; --v-def: #7ccbf0; --v-prob: #3a8fbe; --v-maybe: #1d5578; --v-skip: #4b5f71; --v-wait: #213a50; --v-soft: #12344d; --v-on: #04121d;
     --star: #fbbf24;
-    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
+    --shade: 4,12,20;
+    --shadow: 0 1px 2px rgba(0,0,0,.35), 0 6px 20px rgba(0,0,0,.3);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #15120e; --surface: #1f1b16; --surface-2: #2a251f; --line: #3a332b; --ink: #f4eee5; --muted: #a99f92;
-  --accent: #f59e4b; --accent-soft: #3b2616; --rosa: #ff7fb2; --rosa-soft: #3d1527;
-  --ok: #63d394; --ok-soft: #173323; --warn: #f2bb55; --warn-soft: #3a2c10; --hot: #ff8f80; --hot-soft: #3d1a16;
-  --s1: #2f2922; --s1-fg: #b3a99c; --s2: #4a3720; --s2-fg: #f3d9b0; --s3: #7a5212; --s3-fg: #ffe9c4;
-  --s4: #c46f12; --s4-fg: #1a0f00; --s5: #f08a2c; --s5-fg: #1a0f00;
-  --v-must: #ffc4dd; --v-def: #ff7fb2; --v-prob: #c4467d; --v-maybe: #6b2c48; --v-skip: #6f665b; --v-wait: #3a332b;
+  --bg: #08131e; --surface: #0e1d2b; --surface-2: #14283a; --line: #213a50; --ink: #e5eef6; --muted: #8fa5b8;
+  --accent: #4cc0e8; --accent-soft: #0f3047;
+  --ok: #63d394; --ok-soft: #133226; --warn: #f2bb55; --warn-soft: #33290f; --hot: #ff8f80; --hot-soft: #3a1a18;
+  --s1: #1b2a38; --s1-fg: #a3b3c2; --s2: #3d2c20; --s2-fg: #f8d7b8; --s3: #7c4321; --s3-fg: #ffe0c6;
+  --s4: #e07a45; --s4-fg: #1c0b03; --s5: #ff9b62; --s5-fg: #1c0b03;
+  --v-must: #dff3ff; --v-def: #7ccbf0; --v-prob: #3a8fbe; --v-maybe: #1d5578; --v-skip: #4b5f71; --v-wait: #213a50; --v-soft: #12344d; --v-on: #04121d;
   --star: #fbbf24;
-  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
+  --shade: 4,12,20;
+  --shadow: 0 1px 2px rgba(0,0,0,.35), 0 6px 20px rgba(0,0,0,.3);
   color-scheme: dark;
 }
 
@@ -103,8 +106,8 @@ app-switcher { color: var(--ink); --app-switcher-hover-bg: var(--surface-2); }
 .link-btn { border: 0; background: none; padding: 0; color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
 
 /* Trip hero: the destination photo with the title and trip details over it */
-.hero { position: relative; color: #fff; background: linear-gradient(135deg, #7c2d12, #9d174d) center / cover no-repeat; }
-.hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(10,8,6,.45), rgba(10,8,6,.12) 35%, rgba(10,8,6,.78)); }
+.hero { position: relative; color: #fff; background: linear-gradient(135deg, #0b6fa0, #0a2e4d 70%) center / cover no-repeat; }
+.hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(var(--shade),.45), rgba(var(--shade),.1) 35%, rgba(var(--shade),.8)); }
 .hero-inner { position: relative; z-index: 1; display: flex; flex-direction: column; justify-content: space-between; min-height: 280px; padding-top: 14px; padding-bottom: 22px; }
 .hero-top { display: flex; align-items: center; gap: 8px; }
 .hero-top .spacer { flex: 1; }
@@ -198,6 +201,9 @@ main { padding: 16px 0 40px; }
 .rate-btn:active { transform: scale(.96); }
 .rate-btn[aria-pressed="true"] { border-color: transparent; }
 .rate-btn[aria-pressed="true"] span { color: inherit; opacity: .85; }
+.rate-btn:disabled { cursor: default; opacity: .4; transform: none; }
+.rate-btn:disabled:hover { border-color: var(--line); }
+.rate-btn[aria-pressed="true"]:disabled { opacity: 1; }
 /* Top 5: each person's must-gos (up to five, all equal) */
 .top-btn { justify-self: start; display: inline-flex; align-items: center; gap: 6px; margin-top: 2px; padding: 6px 12px 6px 9px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; font-size: 13.5px; font-weight: 600; color: var(--muted); }
 .top-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
@@ -227,12 +233,10 @@ main { padding: 16px 0 40px; }
 .booked-b { background: var(--ok-soft); color: var(--ok); }
 .closed-b { background: var(--ink); color: var(--bg); }
 .tier { display: inline-flex; padding: 2px 9px; border-radius: 999px; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
-.t-must { background: var(--v-must); color: #fff; }
+.t-must { background: var(--v-must); color: var(--v-on); }
 .t-must::before { content: "★ "; }
-.t-def { background: var(--rosa); color: #fff; }
-:root[data-theme="dark"] .t-def, :root[data-theme="dark"] .t-must { color: #1a0710; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .t-def, :root:not([data-theme="light"]) .t-must { color: #1a0710; } }
-.t-prob { background: var(--rosa-soft); color: var(--rosa); }
+.t-def { background: var(--v-def); color: var(--v-on); }
+.t-prob { background: var(--v-soft); color: var(--v-def); }
 .t-maybe { background: var(--surface-2); color: var(--ink); }
 .t-skip { background: transparent; color: var(--muted); border: 1px solid var(--line); }
 .t-wait { background: transparent; color: var(--muted); border: 1px dashed var(--line); }
@@ -368,7 +372,7 @@ details.walkins p { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
 .remove-btn { display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 6px; background: none; color: var(--muted); }
 .remove-btn:hover { background: var(--hot-soft); color: var(--hot); }
 .remove-btn svg { width: 15px; height: 15px; }
-.scrim { position: fixed; inset: 0; z-index: 19; background: rgba(20,16,12,.45); }
+.scrim { position: fixed; inset: 0; z-index: 19; background: rgba(var(--shade),.5); }
 
 @media (max-width: 1099px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
@@ -390,7 +394,7 @@ footer a { color: inherit; }
 .trip-card { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); }
 .trip-open { display: block; color: inherit; text-decoration: none; flex: 1; }
 .trip-open:hover h2 { color: var(--accent); }
-.trip-cover { position: relative; aspect-ratio: 16 / 9; background: linear-gradient(135deg, #7c2d12, #9d174d) center / cover no-repeat; }
+.trip-cover { position: relative; aspect-ratio: 16 / 9; background: linear-gradient(135deg, #0b6fa0, #0a2e4d 70%) center / cover no-repeat; }
 .trip-cover .when { position: absolute; left: 10px; top: 10px; padding: 3px 10px; border-radius: 999px; background: rgba(0,0,0,.55); color: #fff; font-size: 12.5px; font-weight: 600; backdrop-filter: blur(6px); }
 .trip-body { padding: 14px 16px 10px; display: grid; gap: 2px; }
 .trip-body h2 { margin: 2px 0 2px; font: 600 21px/1.2 var(--font-display); }
@@ -431,7 +435,7 @@ footer a { color: inherit; }
 .board-links { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .board-links a { display: block; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; text-decoration: none; color: var(--ink); font-weight: 600; }
 dialog.dlg { width: min(440px, calc(100vw - 32px)); border: 1px solid var(--line); border-radius: 16px; padding: 22px; background: var(--surface); color: var(--ink); box-shadow: 0 20px 60px rgba(0,0,0,.25); }
-dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
+dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
 .dlg h2 { margin: 0 0 4px; font: 600 22px/1.2 var(--font-display); }
 .dlg p { margin: 0 0 14px; color: var(--muted); font-size: 14px; }
 .dlg label { display: grid; gap: 4px; margin-bottom: 12px; font-size: 13.5px; font-weight: 600; }
@@ -1149,7 +1153,9 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
   }
 
   const myVoter = () => state.voters.find((v) => v.id === state.me?.id);
-  const myScore = (id) => myVoter()?.scores[id] || 0;
+  // A person's score for a place. Anything in their Top 5 counts as a 5.
+  const scoreOf = (v, id) => (v.top.includes(id) ? 5 : v.scores[id] || 0);
+  const myScore = (id) => { const v = myVoter(); return v ? scoreOf(v, id) : 0; };
   const myTop = () => myVoter()?.top || [];
 
   // Add or remove a place from your Top 5. Adding one also rates it 5.
@@ -1172,6 +1178,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
 
   async function setScore(placeId, value) {
     if (!state.me) return openWho("Pick your name first, then tap a score.");
+    if (myTop().includes(placeId)) return toast("It's in your Top 5, so it stays a 5. Take it out of your Top 5 to change the rating.");
     const clear = myScore(placeId) === value; // tapping your current score clears it
     try {
       await votersRef().doc(state.me.id).set({
@@ -1218,7 +1225,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
 
   function stats(p) {
     const n = state.voters.length;
-    const votes = state.voters.map((v) => v.scores[p.id]).filter(Boolean);
+    const votes = state.voters.map((v) => scoreOf(v, p.id)).filter(Boolean);
     const count = votes.length;
     const avg = count ? votes.reduce((a, b) => a + b, 0) / count : 0;
     const min = count ? Math.min(...votes) : 0, max = count ? Math.max(...votes) : 0;
@@ -1306,7 +1313,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
   function peopleHTML(p) {
     if (!state.voters.length) return `<span class="split">No one has joined yet</span>`;
     return `<ul class="people">${orderedVoters().map((v) => {
-      const s = v.scores[p.id];
+      const s = scoreOf(v, p.id);
       const me = v.id === state.me?.id ? " me" : "";
       return s
         ? `<li class="person s${s}${me}" title="${esc(v.name)}: ${s} – ${SCORE_WORDS[s]}"><span>${esc(v.name)}${v.top.includes(p.id) ? " ★" : ""}</span><b>${s}</b></li>`
@@ -1356,7 +1363,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
   function votesListHTML(p) {
     if (!state.voters.length) return `<p class="votes-list empty">No one has joined yet</p>`;
     const rows = state.voters
-      .map((v) => ({ v, s: v.scores[p.id] || 0 }))
+      .map((v) => ({ v, s: scoreOf(v, p.id) }))
       .sort((a, b) => b.s - a.s || b.v.top.includes(p.id) - a.v.top.includes(p.id) || (a.v.id === state.me?.id ? -1 : b.v.id === state.me?.id ? 1 : a.v.name.localeCompare(b.v.name)));
     return `<ul class="votes-list" aria-label="Everyone's scores for ${esc(p.name)}">${rows.map(({ v, s }) => {
       const me = v.id === state.me?.id ? ` class="me"` : "";
@@ -1370,11 +1377,12 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
 
   function scoresHTML(p) {
     const mine = myScore(p.id);
+    const locked = myTop().includes(p.id); // a Top 5 pick is a 5
     const btns = [1, 2, 3, 4, 5].map((v) =>
-      `<button type="button" class="rate-btn${mine === v ? ` s${v}` : ""}" data-rate="${v}" aria-pressed="${mine === v}" aria-label="${v} – ${SCORE_WORDS[v]}"><b>${v}</b><span>${SCORE_WORDS[v]}</span></button>`).join("");
+      `<button type="button" class="rate-btn${mine === v ? ` s${v}` : ""}" data-rate="${v}" aria-pressed="${mine === v}"${locked ? " disabled" : ""} aria-label="${v} – ${SCORE_WORDS[v]}"><b>${v}</b><span>${SCORE_WORDS[v]}</span></button>`).join("");
     return `
       <div class="rate">
-        <span class="row-label">${state.me ? "Your rating" : "Rate it (pick your name first)"}</span>
+        <span class="row-label">${!state.me ? "Rate it (pick your name first)" : locked ? "Your rating · locked at 5 (Top 5)" : "Your rating"}</span>
         <div class="rate-btns" role="group" aria-label="Your rating for ${esc(p.name)}">${btns}</div>
         <p class="rate-legend">1 skip it · 3 sure · 5 love it</p>
         ${topBtnHTML(p)}
@@ -1390,7 +1398,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
     const on = myTop().includes(p.id);
     const full = !on && myTop().length >= TOP_MAX;
     return `<button type="button" class="top-btn${full ? " full" : ""}" data-top aria-pressed="${on}"
-      title="${on ? "In your Top 5. Tap to remove it." : full ? "You've picked all 5. Remove one first." : "Must go: add it to your Top 5"}">${STAR_SVG}${on ? "In my Top 5" : "Add to my Top 5"}</button>`;
+      title="${on ? "In your Top 5, so your rating is locked at 5. Tap to take it out." : full ? "You've picked all 5. Remove one first." : "Must go: add it to your Top 5 (rates it 5)"}">${STAR_SVG}${on ? "In my Top 5" : "Add to my Top 5"}</button>`;
   }
   const topStar = (v) => `<span class="top-star" title="In ${esc(v.name)}'s Top 5" aria-label="Top 5">★</span>`;
 
@@ -1472,7 +1480,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
     const total = places().length;
     if (!state.voters.length) return "";
     return `<ul class="voted">${orderedVoters().map((v) => {
-      const n = places().filter((p) => v.scores[p.id]).length;
+      const n = places().filter((p) => scoreOf(v, p.id)).length;
       return `<li class="${n === total ? "done" : ""}">${esc(v.name)} · ${n === total ? "✓ all rated" : `${n}/${total}`}</li>`;
     }).join("")}</ul>`;
   }
@@ -1728,7 +1736,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
     const legend = tiers.map((x) => `<li><span class="sw sw-${x.t}"></span>${TIERS[x.t].name}<b>${x.n}</b></li>`).join("");
 
     const meters = orderedVoters().map((v) => {
-      const n = all.filter((p) => v.scores[p.id]).length;
+      const n = all.filter((p) => scoreOf(v, p.id)).length;
       const remove = state.isPlanner
         ? `<button class="remove-btn" type="button" data-remove-voter="${esc(v.id)}" title="Remove ${esc(v.name)} and their votes" aria-label="Remove ${esc(v.name)} and their votes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg></button>`
         : "<span></span>";
