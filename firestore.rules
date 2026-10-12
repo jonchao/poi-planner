@@ -1,22 +1,76 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Trip Ranker (jonchao.github.io/trip-ranker): each person's 1-5 scores and shared booking notes.
-    // Every browser signs in anonymously. A board's id is derived from the secret in its private link,
-    // so knowing the link is the access check. Boards can't be listed, and short ids are refused so
-    // a board id can't be guessed.
+    // Trip Ranker (jonchao.github.io/trip-ranker).
+    // Planners sign in with Google and must be listed in team/main. They see every trip and create new ones.
+    // Everyone else signs in anonymously and can open a trip only by knowing its long random id (the trip link).
+    // The sync job (GitHub Actions, service account) bypasses these rules: it imports places from Wanderlog
+    // into plans/{planId} and creates team/main for the owner on its first run.
+
     function signedIn() { return request.auth != null; }
+    function google() {
+      return signedIn() && request.auth.token.firebase.sign_in_provider == 'google.com'
+        && request.auth.token.email_verified == true;
+    }
+    function email() { return request.auth.token.email.lower(); }
+    function teamPath() { return /databases/$(database)/documents/team/main; }
+    function isPlanner() { return google() && exists(teamPath()) && email() in get(teamPath()).data.planners; }
+    function isOwner() { return google() && exists(teamPath()) && email() == get(teamPath()).data.owner; }
+    // Trip ids are long and random, so a trip can't be guessed.
+    function longId(id) { return id.size() >= 30 && id.size() <= 80; }
+
+    // Who can plan. Only the owner changes the list, and can't remove themselves.
+    match /team/main {
+      allow read: if isPlanner();
+      allow update: if isOwner()
+        && request.resource.data.keys().hasOnly(['owner', 'planners', 'updatedAt'])
+        && request.resource.data.owner == resource.data.owner
+        && request.resource.data.planners is list && request.resource.data.planners.size() <= 25
+        && resource.data.owner in request.resource.data.planners;
+    }
+
+    // A trip: title, dates, and the places imported from Wanderlog (written by the sync job).
+    match /plans/{planId} {
+      allow get: if signedIn() && longId(planId);
+      allow list, delete: if isPlanner();
+      allow create: if isPlanner() && longId(planId)
+        && request.resource.data.keys().hasOnly(['title', 'status', 'createdBy', 'createdAt'])
+        && validTitle(request.resource.data.title)
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdBy == email();
+      // Planners can rename a trip and ask for a fresh import (status back to pending); the rest is the sync job's.
+      allow update: if isPlanner()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'status'])
+        && validTitle(request.resource.data.title)
+        && (request.resource.data.status == resource.data.status || request.resource.data.status == 'pending');
+    }
+
+    // Where each trip comes from. Planners only, so the Wanderlog link never reaches guests.
+    match /planSources/{planId} {
+      allow read, delete: if isPlanner();
+      allow create, update: if isPlanner() && longId(planId)
+        && request.resource.data.keys().hasOnly(['link', 'createdBy', 'createdAt', 'requestedAt'])
+        && request.resource.data.link is string && request.resource.data.link.size() <= 300
+        && request.resource.data.link.matches('https://(www[.])?wanderlog[.]com/.+');
+    }
+
+    // Votes for a trip: each person's 1-5 scores and shared booking notes. The board id is the trip id.
     function boardOk(boardId) { return signedIn() && boardId.size() >= 30; }
 
+    // Anyone with the trip link votes; only planners remove someone (and their votes).
     match /rankBoards/{boardId}/voters/{voterId} {
-      allow read, delete: if boardOk(boardId);
+      allow read: if boardOk(boardId);
+      allow delete: if isPlanner();
       allow create, update: if boardOk(boardId) && voterId.size() <= 40 && validVoter(request.resource.data);
     }
 
     match /rankBoards/{boardId}/spots/{placeId} {
-      allow read, delete: if boardOk(boardId);
+      allow read: if boardOk(boardId);
+      allow delete: if isPlanner();
       allow create, update: if boardOk(boardId) && placeId.size() <= 300 && validSpot(request.resource.data);
     }
+
+    function validTitle(t) { return t is string && t.size() > 0 && t.size() <= 80; }
 
     function validVoter(d) {
       return d.keys().hasOnly(['name', 'scores', 'updatedAt'])

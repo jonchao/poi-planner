@@ -10,13 +10,16 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
-/* Layout: trip title, then two columns: the main column (sticky bar with tabs + list filters, then the view)
-   and a sticky summary side panel with whole-trip totals (by type, group verdict, votes in).
-   Below 1100px the summary becomes a slide-over panel opened from the bar.
-   Three views share the same place data: "All spots" is one card per place (photo, short description,
-   your 1-5 rating, everyone's scores), "Group picks" ranks places into tiers by the group's scores,
-   "Reservations" lists what still needs booking. */
+/* Two screens.
+   Trips (planners, signed in with Google): a grid of trip cards with their Wanderlog cover photo, a New trip button,
+   and the co-planner list.
+   A trip (anyone with its link): a hero header with the destination photo and trip details, then two columns:
+   the main column (sticky bar with tabs + list filters, then the view) and a sticky summary side panel with
+   whole-trip totals. Below 1100px the summary becomes a slide-over panel opened from the bar.
+   Views: "All spots" is one card per place (photo, short description, your 1-5 rating, everyone's scores),
+   "Group picks" ranks places into tiers, "Reservations" lists what still needs booking, "Itinerary" is Wanderlog's day-by-day plan, "Map" pins every place. */
 :root {
   --bg: #f7f3ec;
   --surface: #fffdf9;
@@ -82,12 +85,10 @@ button { cursor: pointer; }
 .layout { display: grid; grid-template-columns: minmax(0, 1fr) 312px; gap: 0 32px; align-items: start; }
 .col-main { min-width: 0; }
 
-/* Header */
-.top { padding-top: 18px; padding-bottom: 10px; }
-.top-row { display: flex; align-items: center; gap: 10px; }
+/* Shared header bits */
 .titles { flex: 1; min-width: 0; }
 .eyebrow { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
-h1 { margin: 2px 0 2px; font: 600 clamp(24px, 5vw, 32px)/1.1 var(--font-display); letter-spacing: -.01em; }
+h1 { margin: 2px 0 2px; font: 600 clamp(26px, 5vw, 40px)/1.1 var(--font-display); letter-spacing: -.01em; }
 .sub { margin: 0; color: var(--muted); font-size: 14px; }
 .who { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 12px; font-size: 14px; white-space: nowrap; }
 .who b { font-weight: 600; }
@@ -96,24 +97,43 @@ h1 { margin: 2px 0 2px; font: 600 clamp(24px, 5vw, 32px)/1.1 var(--font-display)
 .icon-btn:hover { background: var(--surface-2); }
 .icon-btn svg { width: 20px; height: 20px; }
 app-switcher { color: var(--ink); --app-switcher-hover-bg: var(--surface-2); }
+.link-btn { border: 0; background: none; padding: 0; color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+
+/* Trip hero: the destination photo with the title and trip details over it */
+.hero { position: relative; color: #fff; background: linear-gradient(135deg, #7c2d12, #9d174d) center / cover no-repeat; }
+.hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(10,8,6,.45), rgba(10,8,6,.12) 35%, rgba(10,8,6,.78)); }
+.hero-inner { position: relative; z-index: 1; display: flex; flex-direction: column; justify-content: space-between; min-height: 280px; padding-top: 14px; padding-bottom: 22px; }
+.hero-top { display: flex; align-items: center; gap: 8px; }
+.hero-top .spacer { flex: 1; }
+.hero-back { display: inline-flex; align-items: center; gap: 6px; color: #fff; text-decoration: none; font-weight: 600; font-size: 14px; padding: 6px 12px 6px 8px; border-radius: 999px; background: rgba(0,0,0,.32); backdrop-filter: blur(6px); }
+.hero-back:hover { background: rgba(0,0,0,.5); }
+.hero .who { background: rgba(0,0,0,.32); border-color: rgba(255,255,255,.35); color: #fff; backdrop-filter: blur(6px); }
+.hero .who.empty { border-color: #fff; color: #fff; }
+.hero .icon-btn, .hero app-switcher { color: #fff; --app-switcher-hover-bg: rgba(255,255,255,.18); }
+.hero .icon-btn:hover { background: rgba(255,255,255,.18); }
+.hero .eyebrow { color: #ffd7ae; text-shadow: 0 1px 8px rgba(0,0,0,.4); }
+.hero h1 { text-shadow: 0 2px 16px rgba(0,0,0,.35); }
+.hero .sub { color: rgba(255,255,255,.9); font-size: 14.5px; text-shadow: 0 1px 8px rgba(0,0,0,.4); }
+.hero .sub .link-btn { color: #fff; }
+.hero-credit { position: absolute; right: 12px; bottom: 6px; z-index: 1; font-size: 11px; color: rgba(255,255,255,.6); }
 
 /* Sticky bar: tabs + filters */
 .bar { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
 .tabs-row { display: flex; align-items: center; gap: 8px; }
 .tabs { display: flex; gap: 4px; padding-top: 4px; overflow-x: auto; scrollbar-width: none; flex: 1; min-width: 0; }
-.dash-btn { display: none; align-items: center; gap: 6px; flex: none; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 5px 12px; font-size: 13.5px; font-weight: 600; }
-.dash-btn svg { width: 16px; height: 16px; }
-.chip-btn.kind-chip { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); font-weight: 600; }
 .tabs::-webkit-scrollbar { display: none; }
 .tab { border: 0; background: none; padding: 10px 12px; border-bottom: 2px solid transparent; color: var(--muted); font-weight: 600; white-space: nowrap; }
 .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
-.tab .count { font-weight: 500; color: var(--muted); margin-left: 4px; }
+.tab .short { display: none; }
+.dash-btn { display: none; align-items: center; gap: 6px; flex: none; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 5px 12px; font-size: 13.5px; font-weight: 600; }
+.dash-btn svg { width: 16px; height: 16px; }
 .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 0; }
 .chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; flex: 1 1 auto; min-width: 0; }
 .chips::-webkit-scrollbar { display: none; }
 .chip-btn { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 5px 12px; font-size: 13.5px; white-space: nowrap; }
 .chip-btn[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
 .chip-btn .n { opacity: .65; margin-left: 4px; }
+.chip-btn.kind-chip { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); font-weight: 600; }
 .tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .tools select { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 5px 8px; font-size: 13.5px; }
 .toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--muted); white-space: nowrap; }
@@ -151,7 +171,7 @@ main { padding: 16px 0 40px; }
 .note { margin: 6px 0 0; font-size: 13.5px; padding: 6px 10px; border-left: 3px solid var(--line); color: var(--muted); }
 .sched { margin: 6px 0 0; font-size: 13.5px; color: var(--ok); font-weight: 500; }
 .links { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: 13.5px; }
-.links a { text-decoration: none; font-weight: 500; }
+.links a, .links button { text-decoration: none; font-weight: 500; }
 .links a:hover { text-decoration: underline; }
 .scores { grid-area: scores; display: grid; grid-template-columns: minmax(0, 1fr) minmax(130px, 200px); gap: 10px 20px; align-items: start; padding-top: 12px; border-top: 1px solid var(--line); }
 .rate-legend { display: none; margin: 0; font-size: 12px; color: var(--muted); }
@@ -164,7 +184,7 @@ main { padding: 16px 0 40px; }
 .votes-list li.me .nm { font-weight: 700; }
 .votes-list .sc { display: grid; place-items: center; flex: none; min-width: 26px; height: 22px; padding: 0 6px; border-radius: 6px; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .votes-list .sc.none { color: var(--muted); font-weight: 500; }
-.votes-list .empty { color: var(--muted); font-size: 13px; }
+.votes-list.empty { color: var(--muted); font-size: 13px; }
 .row-label { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
 .rate { display: grid; gap: 6px; }
 .rate-btns { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; max-width: 420px; }
@@ -175,12 +195,11 @@ main { padding: 16px 0 40px; }
 .rate-btn:active { transform: scale(.96); }
 .rate-btn[aria-pressed="true"] { border-color: transparent; }
 .rate-btn[aria-pressed="true"] span { color: inherit; opacity: .85; }
-.group-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
 .avg { display: inline-flex; align-items: baseline; gap: 4px; }
 .avg b { font-size: 20px; font-weight: 700; line-height: 1; }
 .avg small { color: var(--muted); font-size: 12.5px; }
 .people { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
-.person { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border-radius: 999px; font-size: 13px; background: var(--s0, var(--surface-2)); }
+.person { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border-radius: 999px; font-size: 13px; background: var(--surface-2); }
 .person b { display: grid; place-items: center; min-width: 22px; height: 22px; border-radius: 999px; font-size: 12.5px; background: rgba(255,255,255,.35); }
 .person.none { background: transparent; border: 1px dashed var(--line); color: var(--muted); padding: 2px 10px; }
 .person.me { box-shadow: inset 0 0 0 1.5px var(--ink); }
@@ -230,6 +249,7 @@ main { padding: 16px 0 40px; }
 .book-sec { margin-top: 22px; }
 .book-sec:first-of-type { margin-top: 8px; }
 .book-sec > h2 { margin: 0 0 4px; font: 600 20px/1.2 var(--font-display); }
+.book-sec > h2 .n { font: 500 14px var(--font); color: var(--muted); }
 .book-sec > p { margin: 0 0 10px; color: var(--muted); font-size: 13.5px; }
 .bk { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 14px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 8px; }
 .bk.is-booked { border-color: var(--ok); }
@@ -244,8 +264,49 @@ details.walkins { margin-top: 22px; background: var(--surface); border: 1px soli
 details.walkins summary { cursor: pointer; font-weight: 600; }
 details.walkins p { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
 
+/* Itinerary: one section per day, places in Wanderlog's order on a timeline */
+.days { display: grid; gap: 24px; }
+.day-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin: 0 0 10px; }
+.day-num { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+.day-head h2 { margin: 0; font: 600 20px/1.2 var(--font-display); }
+.day-title { margin: 0; color: var(--muted); font-size: 14px; }
+.day-note { margin: 0 0 10px; color: var(--muted); font-size: 14px; }
+.day-empty { margin: 0; padding: 12px 14px; border: 1px dashed var(--line); border-radius: 12px; color: var(--muted); font-size: 14px; }
+.day-list { position: relative; list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.day-list::before { content: ""; position: absolute; left: 69px; top: 10px; bottom: 10px; width: 2px; background: var(--line); }
+.day-list li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; align-items: center; }
+.it-time { text-align: right; font-size: 13px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.it-card { position: relative; display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 10px 12px; align-items: center; padding: 10px 14px 10px 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.it-card::before { content: ""; position: absolute; left: -6px; top: 50%; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--bg); transform: translate(-50%, -50%); }
+.it-card.note-card { grid-template-columns: minmax(0, 1fr); padding: 10px 14px; background: transparent; border-style: dashed; color: var(--muted); font-size: 14px; }
+.it-card.note-card::before { background: var(--line); }
+.it-info { min-width: 0; display: grid; gap: 3px; }
+.it-info .meta, .it-info .note { margin: 0; }
+.it-score { display: grid; justify-items: end; gap: 4px; }
+.it-score .avg b { font-size: 18px; }
+
+/* Map */
+.map-wrap { display: grid; gap: 10px; }
+.map { position: relative; isolation: isolate; z-index: 0; height: min(68vh, 640px); min-height: 380px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface-2); }
+.map-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; padding: 0; list-style: none; font-size: 13.5px; }
+.map-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.map-legend .dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--line); }
+.map-legend .dot.wait { background: var(--surface); border: 1.5px dashed var(--muted); box-shadow: none; }
+.leaflet-container { font: inherit; }
+.leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--surface); color: var(--ink); box-shadow: 0 8px 28px rgba(0,0,0,.25); }
+.leaflet-popup-content { margin: 12px 14px; width: 250px !important; }
+.leaflet-container a.leaflet-popup-close-button { color: var(--muted); }
+.leaflet-tooltip { font: 600 12.5px var(--font); }
+.pop { display: grid; gap: 6px; }
+.pop-img { width: 100%; height: 110px; object-fit: cover; border-radius: 8px; display: block; background: var(--surface-2); }
+.pop h3 { margin: 0; font-size: 15.5px; line-height: 1.25; }
+.pop .meta { margin: 0; }
+.pop .group-head { margin-top: 2px; }
+.pop .links { margin: 2px 0 0; }
+.pop .links button { border: 0; background: none; padding: 0; color: var(--accent); cursor: pointer; }
+
 /* Summary side panel */
-.side { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; margin-top: 4px; padding: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); scrollbar-width: thin; }
+.side { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; margin-top: 16px; padding: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); scrollbar-width: thin; }
 .side-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .side-head h2 { margin: 0; font: 600 20px/1.2 var(--font-display); }
 .side-close { display: none; }
@@ -281,11 +342,14 @@ details.walkins p { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
 .sw-def { background: var(--v-def); } .sw-prob { background: var(--v-prob); } .sw-maybe { background: var(--v-maybe); }
 .sw-skip { background: var(--v-skip); } .sw-wait { background: var(--v-wait); }
 .meters { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; font-size: 13.5px; }
-.meters li { display: grid; grid-template-columns: minmax(0, 88px) minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+.meters li { display: grid; grid-template-columns: minmax(0, 88px) minmax(0, 1fr) auto auto; align-items: center; gap: 10px; }
 .meters .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .meter { height: 6px; border-radius: 3px; background: var(--accent-soft); overflow: hidden; }
 .meter span { display: block; height: 100%; background: var(--accent); border-radius: 0 3px 3px 0; }
 .meters b { font-weight: 600; font-variant-numeric: tabular-nums; font-size: 12.5px; }
+.remove-btn { display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 6px; background: none; color: var(--muted); }
+.remove-btn:hover { background: var(--hot-soft); color: var(--hot); }
+.remove-btn svg { width: 15px; height: 15px; }
 .scrim { position: fixed; inset: 0; z-index: 19; background: rgba(20,16,12,.45); }
 
 @media (max-width: 1099px) {
@@ -300,28 +364,71 @@ details.walkins p { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
 footer { padding: 8px 0 40px; color: var(--muted); font-size: 13px; }
 footer a { color: inherit; }
 
-/* Gate (no board yet / errors) and the name dialog */
+/* Trips screen */
+.home-top { display: flex; align-items: center; gap: 10px; padding-top: 22px; padding-bottom: 6px; }
+.home-main { padding-top: 12px; }
+.home-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.trip-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.trip-card { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); }
+.trip-open { display: block; color: inherit; text-decoration: none; flex: 1; }
+.trip-open:hover h2 { color: var(--accent); }
+.trip-cover { position: relative; aspect-ratio: 16 / 9; background: linear-gradient(135deg, #7c2d12, #9d174d) center / cover no-repeat; }
+.trip-cover .when { position: absolute; left: 10px; top: 10px; padding: 3px 10px; border-radius: 999px; background: rgba(0,0,0,.55); color: #fff; font-size: 12.5px; font-weight: 600; backdrop-filter: blur(6px); }
+.trip-body { padding: 14px 16px 10px; display: grid; gap: 2px; }
+.trip-body h2 { margin: 2px 0 2px; font: 600 21px/1.2 var(--font-display); }
+.trip-body .meta { margin: 0; }
+.trip-status { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
+.trip-status.err { color: var(--hot); }
+.trip-status.pending { color: var(--warn); }
+.trip-actions { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 10px 12px; }
+.trip-actions button { border: 0; background: none; padding: 5px 8px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.trip-actions button:hover { background: var(--surface-2); color: var(--ink); }
+.trip-actions button.danger:hover { background: var(--hot-soft); color: var(--hot); }
+.trip-actions button:disabled { opacity: .4; cursor: default; background: none; color: var(--muted); }
+.team { margin: 32px 0 48px; max-width: 560px; }
+.team h2 { margin: 0 0 4px; font: 600 20px/1.2 var(--font-display); }
+.team > p { margin: 0 0 12px; color: var(--muted); font-size: 13.5px; }
+.team ul { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 6px; }
+.team li { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; font-size: 14px; }
+.team li .em { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.team li small { color: var(--muted); }
+.team form { display: flex; gap: 8px; }
+.team input { flex: 1; min-width: 0; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 9px 12px; }
+
+/* Gate (sign in / messages) and dialogs */
 .gate { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
 .gate-card { width: 100%; max-width: 440px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 24px; box-shadow: var(--shadow); }
-.gate-card h1 { font-size: 26px; }
-.gate-card p { color: var(--muted); }
-.gate-form { display: flex; gap: 8px; margin-top: 12px; }
+.gate-card h1 { font-size: 28px; }
+.gate-card > p { color: var(--muted); }
+.gate-card h2 { margin: 22px 0 6px; font-size: 13px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.gate-form { display: flex; gap: 8px; }
 .gate-form input, .dlg input { flex: 1; min-width: 0; border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 10px 12px; }
-.btn { border: 0; border-radius: 10px; padding: 10px 16px; background: var(--ink); color: var(--bg); font-weight: 600; white-space: nowrap; }
-.btn.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
-.board-links { display: grid; gap: 6px; margin: 16px 0 0; padding: 0; list-style: none; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 10px; padding: 10px 16px; background: var(--ink); color: var(--bg); font-weight: 600; white-space: nowrap; text-decoration: none; }
+.btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+.btn.danger { background: var(--hot); color: #fff; }
+.btn.small { padding: 7px 12px; font-size: 13.5px; }
+.btn svg { width: 18px; height: 18px; }
+.btn.google { width: 100%; background: var(--surface); color: var(--ink); border: 1px solid var(--line); padding: 11px 16px; }
+.btn.google:hover { border-color: var(--muted); }
+.board-links { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .board-links a { display: block; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; text-decoration: none; color: var(--ink); font-weight: 600; }
-dialog.dlg { width: min(420px, calc(100vw - 32px)); border: 1px solid var(--line); border-radius: 16px; padding: 22px; background: var(--surface); color: var(--ink); box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+dialog.dlg { width: min(440px, calc(100vw - 32px)); border: 1px solid var(--line); border-radius: 16px; padding: 22px; background: var(--surface); color: var(--ink); box-shadow: 0 20px 60px rgba(0,0,0,.25); }
 dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
 .dlg h2 { margin: 0 0 4px; font: 600 22px/1.2 var(--font-display); }
 .dlg p { margin: 0 0 14px; color: var(--muted); font-size: 14px; }
+.dlg label { display: grid; gap: 4px; margin-bottom: 12px; font-size: 13.5px; font-weight: 600; }
+.dlg label input { width: 100%; font-weight: 400; }
+.dlg-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.form-error { margin: 10px 0 0 !important; color: var(--hot) !important; font-size: 13.5px; }
 .names { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 .names button { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 8px 14px; font-weight: 600; }
 .names button:hover { border-color: var(--accent); color: var(--accent); }
-.dlg form { display: flex; gap: 8px; }
+#whoForm { display: flex; gap: 8px; }
 .dlg .later { margin-top: 12px; border: 0; background: none; color: var(--muted); font-size: 13.5px; padding: 4px 0; text-decoration: underline; }
+.toast { position: fixed; left: 50%; bottom: 24px; z-index: 50; transform: translateX(-50%); max-width: calc(100vw - 32px); padding: 10px 16px; border-radius: 10px; background: var(--ink); color: var(--bg); font-size: 14px; font-weight: 500; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
 
 @media (max-width: 600px) {
+  .hero-inner { min-height: 230px; }
   .spot { grid-template-columns: 64px minmax(0, 1fr); grid-template-areas: "thumb info" "scores scores"; padding: 14px; gap: 10px 12px; }
   .thumb { width: 64px; height: 64px; font-size: 22px; }
   .rate-btns { max-width: none; gap: 4px; }
@@ -329,16 +436,25 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
   .rate-legend { display: block; }
   .scores { grid-template-columns: minmax(0, 1fr) 108px; gap: 10px 14px; }
   .who span.lbl { display: none; }
-  .tab { padding: 10px 8px; }
+  .tab { padding: 10px 7px; }
+  .tab .long { display: none; }
+  .tab .short { display: inline; }
   .dash-btn { padding: 7px 9px; }
   .dash-btn .lbl { display: none; }
   .pick { grid-template-columns: 22px 44px minmax(0, 1fr); padding: 10px; }
   .pthumb { width: 44px; height: 44px; }
-  .pscore { grid-column: 3; justify-items: start; text-align: left; grid-auto-flow: column; justify-content: start; align-items: center; gap: 8px; }
+  .pscore { grid-column: 3; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; text-align: left; }
   .tier-head { flex-wrap: wrap; }
   .tier-head p { margin: 0; width: 100%; text-align: left; }
   .bk { grid-template-columns: minmax(0, 1fr); }
   .bk-check { justify-self: start; }
+  .map { height: 62vh; }
+  .day-list::before { left: 53px; }
+  .day-list li { grid-template-columns: 48px minmax(0, 1fr); gap: 10px; }
+  .it-time { font-size: 12px; }
+  .it-card { grid-template-columns: 44px minmax(0, 1fr); }
+  .it-card .pthumb { width: 44px; height: 44px; }
+  .it-score { grid-column: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 }
 @media (max-width: 359px) { .scores { grid-template-columns: minmax(0, 1fr); } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
@@ -347,23 +463,59 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
 <body>
 
 <div id="gate" class="gate">
-  <div class="gate-card" id="gateCard"><p>Opening your board…</p></div>
+  <div class="gate-card" id="gateCard"><p>Loading…</p></div>
 </div>
 
+<!-- Trips screen (planners) -->
+<div id="home" hidden>
+  <header class="shell home-top">
+    <div class="titles">
+      <p class="eyebrow">Trip Ranker</p>
+      <h1>Your trips</h1>
+      <p class="sub" id="homeSub"></p>
+    </div>
+    <button class="btn ghost small" id="signOutBtn" type="button">Sign out</button>
+    <button class="icon-btn theme-btn" type="button" title="Switch light / dark" aria-label="Switch light or dark theme">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4v16" /><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg>
+    </button>
+    <app-switcher></app-switcher>
+  </header>
+  <main class="shell home-main">
+    <div class="home-actions">
+      <p class="sub" id="tripCount"></p>
+      <button class="btn" id="newTripBtn" type="button">+ New trip</button>
+    </div>
+    <div class="trip-grid" id="tripGrid"></div>
+    <section class="team" id="teamSec" aria-labelledby="teamTitle"></section>
+  </main>
+</div>
+
+<!-- One trip -->
 <div id="app" hidden>
-  <header class="shell top">
-    <div class="top-row">
-      <div class="titles">
-        <p class="eyebrow">Trip Ranker</p>
+  <header class="hero" id="hero">
+    <div class="shell hero-inner">
+      <div class="hero-top">
+        <a class="hero-back" id="backLink" href="#" hidden>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+          All trips
+        </a>
+        <span class="spacer"></span>
+        <button class="who" id="whoBtn" type="button"></button>
+        <button class="icon-btn" id="shareBtn" type="button" title="Copy this trip's link" aria-label="Copy this trip's link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>
+        </button>
+        <button class="icon-btn theme-btn" type="button" title="Switch light / dark" aria-label="Switch light or dark theme">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4v16" /><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg>
+        </button>
+        <app-switcher></app-switcher>
+      </div>
+      <div>
+        <p class="eyebrow" id="tripPlace"></p>
         <h1 id="tripTitle"></h1>
         <p class="sub" id="tripSub"></p>
       </div>
-      <button class="who" id="whoBtn" type="button"></button>
-      <button class="icon-btn" id="themeBtn" type="button" title="Switch light / dark" aria-label="Switch light or dark theme">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 4v16" /><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg>
-      </button>
-      <app-switcher></app-switcher>
     </div>
+    <span class="hero-credit" id="heroCredit" hidden>Photo via Wanderlog</span>
   </header>
 
   <div class="shell layout">
@@ -371,9 +523,11 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
       <div class="bar">
         <div class="tabs-row">
           <nav class="tabs" role="tablist" aria-label="Views">
-            <button class="tab" role="tab" data-view="spots" type="button">All spots</button>
-            <button class="tab" role="tab" data-view="picks" type="button">Group picks</button>
-            <button class="tab" role="tab" data-view="book" type="button">Reservations</button>
+            <button class="tab" role="tab" data-view="spots" type="button"><span class="long">All spots</span><span class="short">Spots</span></button>
+            <button class="tab" role="tab" data-view="picks" type="button"><span class="long">Group picks</span><span class="short">Picks</span></button>
+            <button class="tab" role="tab" data-view="book" type="button"><span class="long">Reservations</span><span class="short">Reserve</span></button>
+            <button class="tab" role="tab" data-view="days" type="button"><span class="long">Itinerary</span><span class="short">Days</span></button>
+            <button class="tab" role="tab" data-view="map" type="button">Map</button>
           </nav>
           <button class="dash-btn" id="dashBtn" type="button" aria-controls="side" aria-expanded="false" aria-label="Summary" title="Summary">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>
@@ -403,7 +557,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
 
 <dialog class="dlg" id="whoDlg" aria-labelledby="whoTitle">
   <h2 id="whoTitle">Who's voting?</h2>
-  <p id="whoHint">Pick your name. Your scores are saved under it, so you can open this link on any device and pick up where you left off.</p>
+  <p id="whoHint"></p>
   <div class="names" id="whoNames"></div>
   <form id="whoForm">
     <input id="whoInput" maxlength="30" placeholder="New here? Type your name" autocomplete="given-name" aria-label="Your name">
@@ -412,12 +566,46 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
   <button class="later" id="whoLater" type="button">Just looking for now</button>
 </dialog>
 
+<dialog class="dlg" id="newDlg" aria-labelledby="newTitle">
+  <h2 id="newTitle">New trip</h2>
+  <p>Paste the trip's Wanderlog link (in Wanderlog: Share → copy link). Its places show up here within about 10–20 minutes.</p>
+  <form id="newForm" novalidate>
+    <label>Wanderlog link<input id="newLink" inputmode="url" autocomplete="off" placeholder="https://wanderlog.com/view/…"></label>
+    <label>Name <small>(optional; uses the Wanderlog trip name)</small><input id="newName" maxlength="80" autocomplete="off"></label>
+    <div class="dlg-actions">
+      <button class="btn ghost" type="button" data-close>Cancel</button>
+      <button class="btn" type="submit">Add trip</button>
+    </div>
+    <p class="form-error" id="newError" hidden></p>
+  </form>
+</dialog>
+
+<!-- Confirm / ask: filled in by askDialog() -->
+<dialog class="dlg" id="askDlg" aria-labelledby="askTitle">
+  <h2 id="askTitle"></h2>
+  <p id="askBody"></p>
+  <form id="askForm" method="dialog">
+    <input id="askInput" maxlength="80" autocomplete="off" hidden>
+    <div class="dlg-actions" style="margin-top:14px">
+      <button class="btn ghost" type="button" data-close>Cancel</button>
+      <button class="btn" id="askOk" type="submit" value="ok"></button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script>
 (() => {
-  // Trip Ranker's own Firebase project; votes live under rankBoards/{boardId} (rules: firestore.rules).
+  // Trip Ranker's own Firebase project (rules: firestore.rules).
+  //   team/main                  who can plan (Google sign-in)
+  //   plans/{tripId}             a trip and its places, imported from Wanderlog by the sync job
+  //   planSources/{tripId}       the trip's Wanderlog link (planners only)
+  //   rankBoards/{tripId}/...    everyone's votes and booking notes
   const firebaseConfig = {
     apiKey: "AIzaSyCwUhxT7pmI8cgk_7j-K0YbXwuThm636Oo",
     authDomain: "poi-planner-de173.firebaseapp.com",
@@ -426,18 +614,6 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
     messagingSenderId: "225752772584",
     appId: "1:225752772584:web:a091a48cdcb78884affe5d"
   };
-  const SYNC_URL = "https://github.com/jonchao/trip-ranker/actions/workflows/sync.yml";
-  // When the site last checked Wanderlog: the latest successful run of the sync job.
-  const RUNS_URL = "https://api.github.com/repos/jonchao/trip-ranker/actions/workflows/sync.yml/runs?status=success&per_page=1";
-  let lastSync = null;
-  async function loadLastSync() {
-    try {
-      const res = await fetch(RUNS_URL, { headers: { Accept: "application/vnd.github+json" } });
-      if (!res.ok) return;
-      lastSync = (await res.json()).workflow_runs?.[0]?.updated_at || null;
-      if (state.board) renderHeader();
-    } catch (e) { /* offline or rate-limited: leave it out */ }
-  }
   const SCORE_WORDS = ["", "Skip it", "Meh", "Sure", "Want to", "Must go"];
   const TIERS = {
     def:   { name: "Definitely go", cls: "t-def",   hint: "Average 4 or more and nobody below 3" },
@@ -452,127 +628,451 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
     restaurant: "Restaurants", cafe: "Cafés & bakeries", bar: "Bars", sight: "Museums & sights",
     area: "Neighborhoods", market: "Markets & shopping", activity: "Activities & events", other: "Other",
   };
-  const LS_BOARDS = "tripRanker.boards";
+  const NEW_TRIP = "New trip"; // placeholder title until the first import (matches the sync script)
+  const LS_TRIPS = "tripRanker.trips";
+  const WANDERLOG_LINK = /^https:\/\/(www\.)?wanderlog\.com\/(view|plan|tp)\/[A-Za-z0-9]+/;
 
   const $ = (sel, root = document) => root.querySelector(sel);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
   const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+  const lsDel = (k) => { try { localStorage.removeItem(k); } catch (e) {} };
+
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+  const FV = () => firebase.firestore.FieldValue;
 
   const state = {
-    slug: null, secret: null, boardId: null, board: null, months: [],
+    user: null, authReady: false, team: null, isPlanner: false, isOwner: false,
+    plans: [],
+    tripId: null, plan: null, board: null, boardKey: "", months: [],
     voters: [], spots: {}, me: null,
     view: "spots", list: "all", kind: null, sort: "list", unratedOnly: false,
-    pendingRender: false,
+    pendingRender: false, map: null,
   };
-  let votersRef = null, spotsRef = null;
+  let tripUnsubs = [], homeUnsubs = [];
+  const votersRef = () => db.collection("rankBoards").doc(state.tripId).collection("voters");
+  const spotsRef = () => db.collection("rankBoards").doc(state.tripId).collection("spots");
 
-  /* ---------- Board link, decryption ---------- */
+  /* ---------- Small UI helpers ---------- */
 
-  const enc = new TextEncoder();
-  const fromB64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
-  async function sha256hex(text) {
-    const buf = await crypto.subtle.digest("SHA-256", enc.encode(text));
-    return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
-  }
-  // Must match scripts/sync-wanderlog.mjs.
-  async function decryptBoard(file, slug, secret) {
-    const base = await crypto.subtle.importKey("raw", enc.encode(secret), "PBKDF2", false, ["deriveKey"]);
-    const key = await crypto.subtle.deriveKey(
-      { name: "PBKDF2", salt: enc.encode(`trip-ranker:${slug}`), iterations: 150000, hash: "SHA-256" },
-      base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
-    const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: fromB64(file.iv) }, key, fromB64(file.data));
-    return JSON.parse(new TextDecoder().decode(plain));
+  let toastTimer;
+  function toast(text) {
+    const t = $("#toast");
+    t.textContent = text;
+    t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.hidden = true; }, 3200);
   }
 
-  function parseHash(hash) {
-    const m = String(hash || "").replace(/^.*#/, "").match(/^([a-z0-9-]{2,40})[:/]([A-Za-z0-9_-]{16,})$/);
-    return m ? { slug: m[1], secret: m[2] } : null;
-  }
-  function savedBoards() {
-    try { return JSON.parse(lsGet(LS_BOARDS) || "[]").filter((b) => b && b.slug && b.secret); } catch (e) { return []; }
-  }
-  function rememberBoard(slug, secret, title) {
-    const list = savedBoards().filter((b) => b.slug !== slug);
-    list.unshift({ slug, secret, title });
-    lsSet(LS_BOARDS, JSON.stringify(list.slice(0, 10)));
-  }
-
-  function showGate(html) {
-    $("#app").hidden = true;
-    $("#gate").hidden = false;
-    $("#gateCard").innerHTML = html;
-  }
-  function showNoBoard(message) {
-    const boards = savedBoards();
-    showGate(`
-      <p class="eyebrow">Trip Ranker</p>
-      <h1>Open your trip board</h1>
-      <p>${esc(message || "Each trip has its own private link. Paste the one your group shared.")}</p>
-      <form class="gate-form" id="gateForm">
-        <input id="gateInput" placeholder="Paste the board link" aria-label="Board link" autocomplete="off">
-        <button class="btn" type="submit">Open</button>
-      </form>
-      ${boards.length ? `<ul class="board-links">${boards.map((b) => `<li><a href="#${esc(b.slug)}:${esc(b.secret)}">${esc(b.title || b.slug)}</a></li>`).join("")}</ul>` : ""}`);
-    $("#gateForm").addEventListener("submit", (e) => {
-      e.preventDefault();
-      const parsed = parseHash($("#gateInput").value.trim());
-      if (parsed) location.hash = `${parsed.slug}:${parsed.secret}`;
-      else showNoBoard("That doesn't look like a board link. It should end with #name:code.");
+  // A confirm (or, with `value`, a one-line text prompt). Resolves to true / the text, or null if cancelled.
+  function askDialog({ title, body = "", confirm = "OK", danger = false, value = null }) {
+    const dlg = $("#askDlg");
+    $("#askTitle").textContent = title;
+    $("#askBody").textContent = body;
+    $("#askBody").hidden = !body;
+    const input = $("#askInput");
+    input.hidden = value === null;
+    input.value = value ?? "";
+    const ok = $("#askOk");
+    ok.textContent = confirm;
+    ok.className = `btn${danger ? " danger" : ""}`;
+    const form = $("#askForm"), cancelBtn = $("#askDlg [data-close]");
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (result) => {
+        if (settled) return;
+        settled = true;
+        form.removeEventListener("submit", onSubmit);
+        cancelBtn.removeEventListener("click", onCancel);
+        dlg.removeEventListener("cancel", onCancel);
+        dlg.removeEventListener("close", onCancel);
+        if (dlg.open) dlg.close();
+        resolve(result);
+      };
+      const onSubmit = (e) => { e.preventDefault(); finish(value === null ? true : input.value.trim() || null); };
+      const onCancel = () => finish(null); // Cancel button, Escape, or the dialog closing any other way
+      form.addEventListener("submit", onSubmit);
+      cancelBtn.addEventListener("click", onCancel);
+      dlg.addEventListener("cancel", onCancel);
+      dlg.addEventListener("close", onCancel);
+      dlg.showModal();
+      (value === null ? ok : input).focus();
     });
   }
+  document.querySelectorAll("dialog [data-close]").forEach((b) => b.addEventListener("click", () => b.closest("dialog").close()));
 
-  async function openBoard() {
-    const parsed = parseHash(location.hash) || (location.hash ? null : savedBoards()[0]);
-    if (!parsed) return showNoBoard(location.hash ? "That link looks incomplete. Check you copied all of it." : "");
-    if (!window.crypto?.subtle) return showNoBoard("This browser can't open private boards. Try a current version of Safari, Chrome or Firefox.");
-    showGate(`<p>Opening your board…</p>`);
-    let board;
+  async function copyLink(id, title) {
+    const url = `${location.origin}${location.pathname}#trip/${id}`;
     try {
-      const res = await fetch(`data/${parsed.slug}.json`, { cache: "no-cache" });
-      if (!res.ok) throw new Error("missing");
-      board = await decryptBoard(await res.json(), parsed.slug, parsed.secret);
+      await navigator.clipboard.writeText(url);
+      toast(`Link to ${title || "this trip"} copied. Anyone with it can view and vote.`);
     } catch (e) {
-      return showNoBoard("Couldn't open that board. The link may be incomplete or out of date.");
+      await askDialog({ title: "Trip link", body: "Copy this link to share the trip.", value: url, confirm: "Done" });
     }
-    if (location.hash !== `#${parsed.slug}:${parsed.secret}`) history.replaceState(null, "", `#${parsed.slug}:${parsed.secret}`);
-    Object.assign(state, { slug: parsed.slug, secret: parsed.secret, board, voters: [], spots: {} });
-    state.boardId = `${parsed.slug}-${(await sha256hex(`board:${parsed.slug}:${parsed.secret}`)).slice(0, 32)}`;
-    state.months = tripMonths(board);
-    try { state.me = JSON.parse(lsGet(`tripRanker.me.${state.boardId}`) || "null"); } catch (e) { state.me = null; }
-    rememberBoard(parsed.slug, parsed.secret, board.title);
-    document.title = `${board.title} · Trip Ranker`;
-    $("#gate").hidden = true;
-    $("#app").hidden = false;
-    renderHeader();
-    render();
-    connect();
   }
 
-  /* ---------- Firestore ---------- */
+  function showOnly(which) {
+    $("#gate").hidden = which !== "gate";
+    $("#home").hidden = which !== "home";
+    $("#app").hidden = which !== "app";
+  }
+  function showGate(html) {
+    showOnly("gate");
+    $("#gateCard").innerHTML = html;
+  }
 
-  let unsub = [];
-  async function connect() {
-    unsub.forEach((u) => u());
-    unsub = [];
-    try {
-      if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-      await firebase.auth().signInAnonymously();
-    } catch (e) {
-      return showBanner("Couldn't connect to the votes database. Check your connection and reload.");
+  /* ---------- Trips opened on this device (for people who aren't planners) ---------- */
+
+  function rememberedTrips() {
+    try { return JSON.parse(lsGet(LS_TRIPS) || "[]").filter((t) => t && t.id); } catch (e) { return []; }
+  }
+  function rememberTrip(id, title) {
+    const list = rememberedTrips().filter((t) => t.id !== id);
+    list.unshift({ id, title });
+    lsSet(LS_TRIPS, JSON.stringify(list.slice(0, 12)));
+  }
+
+  /* ---------- Links ---------- */
+
+  async function sha256hex(text) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+    return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  // Older board links (#slug:secret) point at the trip whose id was derived from them.
+  const oldLinkTripId = async (slug, secret) => `${slug}-${(await sha256hex(`board:${slug}:${secret}`)).slice(0, 32)}`;
+
+  function parseRoute(hash) {
+    const h = String(hash || "").replace(/^.*#/, "");
+    let m = h.match(/^trip\/([A-Za-z0-9-]{30,80})$/);
+    if (m) return { trip: m[1] };
+    m = h.match(/^([a-z0-9-]{2,40}):([A-Za-z0-9_-]{16,})$/);
+    if (m) return { old: { slug: m[1], secret: m[2] } };
+    return { home: true };
+  }
+  function randomId() {
+    const abc = "abcdefghijklmnopqrstuvwxyz0123456789";
+    return [...crypto.getRandomValues(new Uint8Array(32))].map((n) => abc[n % abc.length]).join("");
+  }
+
+  /* ---------- Routing and sign-in ---------- */
+
+  let routeSeq = 0;
+  async function route() {
+    if (!state.authReady) return;
+    const seq = ++routeSeq;
+    const r = parseRoute(location.hash);
+    if (r.old) {
+      if (!window.crypto?.subtle) return showGate(`<p>This browser can't open this link. Try a current version of Safari, Chrome or Firefox.</p>`);
+      const id = await oldLinkTripId(r.old.slug, r.old.secret);
+      if (seq !== routeSeq) return;
+      history.replaceState(null, "", `#trip/${id}`);
+      return openTrip(id);
     }
-    const boardRef = firebase.firestore().collection("rankBoards").doc(state.boardId);
-    votersRef = boardRef.collection("voters");
-    spotsRef = boardRef.collection("spots");
+    if (r.trip) return openTrip(r.trip);
+    return openHome();
+  }
+
+  async function loadTeam() {
+    Object.assign(state, { team: null, isPlanner: false, isOwner: false });
+    const u = state.user;
+    if (!u || u.isAnonymous) return;
+    try {
+      const snap = await db.collection("team").doc("main").get();
+      if (!snap.exists) return;
+      setTeam(snap.data());
+    } catch (e) { /* not on the planner list */ }
+  }
+  function setTeam(team) {
+    const email = (state.user?.email || "").toLowerCase();
+    state.team = team;
+    state.isPlanner = !!team && (team.planners || []).includes(email);
+    state.isOwner = !!team && team.owner === email;
+  }
+
+  async function signIn() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+    try {
+      await auth.signInWithPopup(provider);
+    } catch (e) {
+      if (e.code === "auth/popup-blocked" || e.code === "auth/operation-not-supported-in-this-environment") return auth.signInWithRedirect(provider);
+      if (e.code !== "auth/popup-closed-by-user" && e.code !== "auth/cancelled-popup-request") toast(`Couldn't sign in: ${e.message}`);
+    }
+  }
+
+  auth.onAuthStateChanged(async (user) => {
+    state.user = user;
+    await loadTeam();
+    state.authReady = true;
+    route();
+  });
+  window.addEventListener("hashchange", route);
+
+  /* ---------- Sign-in screen (no planner signed in) ---------- */
+
+  function showSignIn(note) {
+    stopTrip();
+    stopHome();
+    const trips = rememberedTrips();
+    const email = state.user && !state.user.isAnonymous ? state.user.email : null;
+    showGate(`
+      <p class="eyebrow">Trip Ranker</p>
+      <h1>Plan trips with your group</h1>
+      ${email
+        ? `<p>${esc(email)} isn't on the planner list yet. Ask the trip owner to add you under Co-planners.</p>
+           <button class="btn ghost" type="button" data-signout>Sign out</button>`
+        : `<p>${esc(note || "Planners sign in to see every trip and add new ones.")}</p>
+           <button class="btn google" type="button" data-signin>
+             <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.5 12.3c0-.8-.1-1.5-.2-2.3H12v4.3h5.9a5 5 0 0 1-2.2 3.3v2.7h3.5c2-1.9 3.3-4.7 3.3-8z"/><path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.5-2.7c-1 .7-2.3 1.1-3.8 1.1-2.9 0-5.4-2-6.3-4.6H2.1v2.8A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.7 14.1a6.6 6.6 0 0 1 0-4.2V7.1H2.1a11 11 0 0 0 0 9.8z"/><path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.2 1.7l3.1-3.1A11 11 0 0 0 2.1 7.1l3.6 2.8C6.6 7.3 9.1 5.4 12 5.4z"/></svg>
+             Sign in with Google
+           </button>`}
+      <h2>Got a trip link?</h2>
+      <form class="gate-form" id="gateForm">
+        <input id="gateInput" placeholder="Paste the trip link" aria-label="Trip link" autocomplete="off">
+        <button class="btn" type="submit">Open</button>
+      </form>
+      ${trips.length ? `<h2>Opened on this device</h2><ul class="board-links">${trips.map((t) => `<li><a href="#trip/${esc(t.id)}">${esc(t.title || "Trip")}</a></li>`).join("")}</ul>` : ""}`);
+    $("#gateForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const r = parseRoute($("#gateInput").value.trim());
+      if (r.trip) location.hash = `trip/${r.trip}`;
+      else if (r.old) location.hash = `${r.old.slug}:${r.old.secret}`;
+      else toast("That doesn't look like a trip link.");
+    });
+  }
+  $("#gate").addEventListener("click", (e) => {
+    if (e.target.closest("[data-signin]")) signIn();
+    if (e.target.closest("[data-signout]")) auth.signOut();
+  });
+
+  /* ---------- Trips screen ---------- */
+
+  function stopHome() { homeUnsubs.forEach((u) => u()); homeUnsubs = []; }
+
+  function openHome() {
+    stopTrip();
+    if (!state.user || state.user.isAnonymous || !state.isPlanner) return showSignIn();
+    document.title = "Trip Ranker";
+    showOnly("home");
+    renderHome();
+    if (homeUnsubs.length) return;
+    homeUnsubs.push(db.collection("plans").onSnapshot((snap) => {
+      state.plans = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      renderHome();
+    }, (err) => { console.error(err); toast("Couldn't load your trips. Reload to try again."); }));
+    homeUnsubs.push(db.collection("team").doc("main").onSnapshot((snap) => {
+      setTeam(snap.data() || null);
+      if (!state.isPlanner) return showSignIn();
+      renderHome();
+    }, () => {}));
+  }
+
+  function tripStatus(p) {
+    if (p.status === "error") return `<p class="trip-status err">Couldn't import from Wanderlog: ${esc(p.error || "unknown error")}</p>`;
+    if (p.status === "pending") return `<p class="trip-status pending">${p.places ? "Refreshing" : "Importing"} from Wanderlog… usually within 10–20 minutes</p>`;
+    return p.syncedAt ? `<p class="trip-status">Refreshed from Wanderlog ${esc(ago(p.syncedAt))}</p>` : "";
+  }
+
+  function renderHome() {
+    $("#homeSub").textContent = state.user?.email ? `Signed in as ${state.user.email}` : "";
+    const today = todayNoon();
+    const upcoming = (p) => !p.endDate || day(p.endDate) >= today;
+    const sorted = [...state.plans].sort((a, b) =>
+      (upcoming(b) - upcoming(a))
+      || (upcoming(a) ? (a.startDate || "9999").localeCompare(b.startDate || "9999") : (b.startDate || "").localeCompare(a.startDate || "")));
+    $("#tripCount").textContent = sorted.length ? `${sorted.length} trip${sorted.length === 1 ? "" : "s"}` : "";
+    $("#tripGrid").innerHTML = sorted.length ? sorted.map((p) => {
+      const togo = daysToGoFor(p.startDate, p.endDate);
+      return `<article class="trip-card" data-trip="${esc(p.id)}">
+        <a class="trip-open" href="#trip/${esc(p.id)}">
+          <div class="trip-cover"${p.hero ? ` style="background-image:url('${esc(p.hero)}')"` : ""}>${togo ? `<span class="when">${esc(togo)}</span>` : ""}</div>
+          <div class="trip-body">
+            ${p.destination ? `<p class="eyebrow">${esc(p.destination)}</p>` : ""}
+            <h2>${esc(p.title || NEW_TRIP)}</h2>
+            <p class="meta">${[fmtRange(p.startDate, p.endDate), p.placeCount ? `${p.placeCount} spots` : ""].filter(Boolean).join(" · ") || "Waiting for Wanderlog"}</p>
+            ${tripStatus(p)}
+          </div>
+        </a>
+        <div class="trip-actions">
+          <button type="button" data-act="copy">Copy link</button>
+          <button type="button" data-act="refresh"${p.status === "pending" ? " disabled" : ""}>Refresh</button>
+          <button type="button" data-act="rename">Rename</button>
+          <button type="button" class="danger" data-act="delete">Delete</button>
+        </div>
+      </article>`;
+    }).join("") : `<div class="empty-note">No trips yet. Add one from a Wanderlog link.</div>`;
+    renderTeam();
+  }
+
+  function renderTeam() {
+    const team = state.team;
+    if (!team) { $("#teamSec").innerHTML = ""; return; }
+    const planners = [...(team.planners || [])].sort((a, b) => (a === team.owner ? -1 : b === team.owner ? 1 : a.localeCompare(b)));
+    $("#teamSec").innerHTML = `
+      <h2 id="teamTitle">Co-planners</h2>
+      <p>Co-planners sign in with Google to see every trip and add new ones. Friends don't need this: they vote from a trip's link.</p>
+      <ul>${planners.map((e) => `<li><span class="em">${esc(e)}</span>${e === team.owner ? "<small>Owner</small>" : state.isOwner ? `<button class="btn ghost small" type="button" data-unplan="${esc(e)}">Remove</button>` : ""}</li>`).join("")}</ul>
+      ${state.isOwner ? `<form id="teamForm"><input id="teamEmail" type="email" placeholder="Their Google email" aria-label="Co-planner's Google email" autocomplete="off"><button class="btn" type="submit">Add</button></form>` : ""}`;
+  }
+
+  async function savePlanners(planners) {
+    try {
+      await db.collection("team").doc("main").update({ planners, updatedAt: FV().serverTimestamp() });
+    } catch (e) { console.error(e); toast("Couldn't update co-planners."); }
+  }
+  $("#teamSec").addEventListener("submit", async (e) => {
+    if (e.target.id !== "teamForm") return;
+    e.preventDefault();
+    const email = $("#teamEmail").value.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast("Enter their Google email address.");
+    const planners = state.team.planners || [];
+    if (planners.includes(email)) return toast(`${email} is already a co-planner.`);
+    await savePlanners([...planners, email]);
+    toast(`Added ${email}. They can sign in with that Google account.`);
+  });
+  $("#teamSec").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-unplan]");
+    if (!b) return;
+    const email = b.dataset.unplan;
+    const ok = await askDialog({ title: `Remove ${email}?`, body: "They'll no longer see the trip list or add trips. Trip links they already have keep working.", confirm: "Remove", danger: true });
+    if (ok) await savePlanners((state.team.planners || []).filter((x) => x !== email));
+  });
+
+  $("#tripGrid").addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-act]");
+    if (!btn) return;
+    const id = btn.closest("[data-trip]").dataset.trip;
+    const plan = state.plans.find((p) => p.id === id);
+    const title = plan?.title || NEW_TRIP;
+    try {
+      if (btn.dataset.act === "copy") return copyLink(id, title);
+      if (btn.dataset.act === "refresh") return await requestRefresh(id, title);
+      if (btn.dataset.act === "rename") {
+        const name = await askDialog({ title: "Rename trip", value: title, confirm: "Save" });
+        if (name && name !== title) await db.collection("plans").doc(id).update({ title: name.slice(0, 80) });
+        return;
+      }
+      if (btn.dataset.act === "delete") {
+        const ok = await askDialog({ title: `Delete ${title}?`, body: "The trip and its link stop working for everyone. This can't be undone.", confirm: "Delete trip", danger: true });
+        if (!ok) return;
+        const batch = db.batch();
+        batch.delete(db.collection("plans").doc(id));
+        batch.delete(db.collection("planSources").doc(id));
+        await batch.commit();
+        toast(`Deleted ${title}.`);
+      }
+    } catch (err) { console.error(err); toast("That didn't work. Try again."); }
+  });
+
+  async function requestRefresh(id, title) {
+    const batch = db.batch();
+    batch.update(db.collection("plans").doc(id), { status: "pending" });
+    batch.update(db.collection("planSources").doc(id), { requestedAt: FV().serverTimestamp() });
+    await batch.commit();
+    toast(`${title} will refresh from Wanderlog within about 10–20 minutes.`);
+  }
+
+  $("#newTripBtn").addEventListener("click", () => {
+    $("#newForm").reset();
+    $("#newError").hidden = true;
+    $("#newDlg").showModal();
+  });
+  $("#newForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const link = $("#newLink").value.trim();
+    const name = $("#newName").value.trim().replace(/\s+/g, " ").slice(0, 80);
+    const err = $("#newError");
+    if (!WANDERLOG_LINK.test(link)) {
+      err.textContent = "Paste a Wanderlog trip link. It starts with https://wanderlog.com/view/ or /plan/.";
+      err.hidden = false;
+      return;
+    }
+    const id = randomId();
+    const email = state.user.email.toLowerCase();
+    try {
+      const batch = db.batch();
+      batch.set(db.collection("planSources").doc(id), { link, createdBy: email, createdAt: FV().serverTimestamp(), requestedAt: FV().serverTimestamp() });
+      batch.set(db.collection("plans").doc(id), { title: name || NEW_TRIP, status: "pending", createdBy: email, createdAt: FV().serverTimestamp() });
+      await batch.commit();
+      $("#newDlg").close();
+      toast("Trip added. Its places will show up within about 10–20 minutes.");
+    } catch (ex) {
+      console.error(ex);
+      err.textContent = "Couldn't add the trip. Check you're still signed in and try again.";
+      err.hidden = false;
+    }
+  });
+  $("#signOutBtn").addEventListener("click", () => auth.signOut());
+
+  /* ---------- One trip ---------- */
+
+  function stopTrip() {
+    tripUnsubs.forEach((u) => u());
+    tripUnsubs = [];
+    destroyMap();
+    setDrawer(false);
+    state.tripId = null;
+  }
+
+  function openTrip(id) {
+    stopHome();
+    if (!state.user) {
+      showGate(`<p>Opening trip…</p>`);
+      auth.signInAnonymously().catch(() => showGate(`<p>Couldn't connect. Check your connection and reload.</p>`));
+      return; // signing in calls route() again
+    }
+    if (state.tripId === id && tripUnsubs.length) { renderHeader(); return; }
+    stopTrip();
+    Object.assign(state, {
+      tripId: id, plan: null, board: null, boardKey: "", months: [], voters: [], spots: {},
+      view: "spots", list: "all", kind: null, sort: "list", unratedOnly: false,
+    });
+    try { state.me = JSON.parse(lsGet(`tripRanker.me.${id}`) || "null"); } catch (e) { state.me = null; }
+    showGate(`<p>Opening trip…</p>`);
+    let first = true;
+    tripUnsubs.push(db.collection("plans").doc(id).onSnapshot((snap) => {
+      if (!snap.exists) return tripMissing();
+      const plan = snap.data();
+      state.plan = plan;
+      rememberTrip(id, plan.title);
+      const key = Array.isArray(plan.places) ? JSON.stringify([plan.places, plan.lists, plan.itinerary, plan.startDate, plan.endDate]) : "";
+      const placesChanged = key !== state.boardKey;
+      if (placesChanged) {
+        state.boardKey = key;
+        state.board = key ? { lists: plan.lists || [], places: plan.places, itinerary: plan.itinerary || [], startDate: plan.startDate, endDate: plan.endDate } : null;
+        state.months = state.board ? tripMonths(state.board) : [];
+      }
+      showOnly("app");
+      renderHeader();
+      if (first || placesChanged) render();
+      first = false;
+    }, (err) => {
+      console.error(err);
+      if (err.code === "permission-denied") return tripMissing();
+      showGate(`<p>Lost the connection to this trip. Reload to try again.</p>`);
+    }));
+    connectVotes();
+  }
+
+  function tripMissing() {
+    stopTrip();
+    showGate(`<p class="eyebrow">Trip Ranker</p><h1>Trip not found</h1>
+      <p>This trip was deleted, or the link is incomplete. Ask whoever shared it for a fresh link.</p>
+      <a class="btn ghost" href="#">Go to Trip Ranker</a>`);
+  }
+
+  function connectVotes() {
     let askedName = false;
-    unsub.push(votersRef.onSnapshot((snap) => {
+    tripUnsubs.push(votersRef().onSnapshot((snap) => {
       state.voters = snap.docs.map((d) => ({ id: d.id, name: d.data().name || d.id, scores: cleanScores(d.data().scores) }));
       showBanner("");
       renderHeader();
       scheduleRender();
-      if (!askedName && !state.me) { askedName = true; openWho(); }
+      if (!askedName && !state.me && state.board) { askedName = true; openWho(); }
     }, dbError));
-    unsub.push(spotsRef.onSnapshot((snap) => {
+    tripUnsubs.push(spotsRef().onSnapshot((snap) => {
       state.spots = Object.fromEntries(snap.docs.map((d) => [d.id, d.data()]));
       scheduleRender();
     }, dbError));
@@ -580,7 +1080,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
   function dbError(err) {
     console.error(err);
     showBanner(err && err.code === "permission-denied"
-      ? "Voting isn't switched on yet: the Firestore rules for Trip Ranker haven't been published. Places still show below."
+      ? "Voting isn't available for this trip right now."
       : "Lost the connection to the votes database. Reload to try again.");
   }
   function showBanner(text) {
@@ -599,27 +1099,44 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
 
   async function setScore(placeId, value) {
     if (!state.me) return openWho("Pick your name first, then tap a score.");
-    const FV = firebase.firestore.FieldValue;
     const clear = myScore(placeId) === value; // tapping your current score clears it
     try {
-      await votersRef.doc(state.me.id).set({
+      await votersRef().doc(state.me.id).set({
         name: myVoter()?.name || state.me.name,
-        scores: { [placeId]: clear ? FV.delete() : value },
-        updatedAt: FV.serverTimestamp(),
+        scores: { [placeId]: clear ? FV().delete() : value },
+        updatedAt: FV().serverTimestamp(),
       }, { merge: true });
     } catch (e) { dbError(e); }
   }
 
   async function saveSpot(placeId, fields) {
-    const FV = firebase.firestore.FieldValue;
     try {
-      await spotsRef.doc(placeId).set({ ...fields, by: myVoter()?.name || state.me?.name || "Someone", updatedAt: FV.serverTimestamp() }, { merge: true });
+      await spotsRef().doc(placeId).set({ ...fields, by: myVoter()?.name || state.me?.name || "Someone", updatedAt: FV().serverTimestamp() }, { merge: true });
     } catch (e) { dbError(e); }
+  }
+
+  // Planners can take someone off a trip, along with their votes.
+  async function removeVoter(voterId) {
+    const v = state.voters.find((x) => x.id === voterId);
+    if (!v) return;
+    const n = Object.keys(v.scores).length;
+    const ok = await askDialog({
+      title: `Remove ${v.name}?`,
+      body: `${v.name} will be removed from this trip, along with ${n ? `all ${n} of their ratings` : "their name (they haven't rated anything yet)"}. This can't be undone.`,
+      confirm: `Remove ${v.name}`,
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await votersRef().doc(voterId).delete();
+      if (state.me?.id === voterId) { state.me = null; lsDel(`tripRanker.me.${state.tripId}`); renderHeader(); }
+      toast(`Removed ${v.name} and their ratings.`);
+    } catch (e) { console.error(e); toast(`Couldn't remove ${v.name}.`); }
   }
 
   /* ---------- Derived data ---------- */
 
-  const places = () => state.board.places;
+  const places = () => state.board?.places || [];
   const inList = (p) => (state.list === "all" || p.lists.includes(state.list)) && (!state.kind || (p.kind || "other") === state.kind);
   const orderedVoters = () => {
     const me = state.me?.id;
@@ -657,7 +1174,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
   function need(p) {
     if (!p.booking) return null;
     let wd = 0, we = 0;
-    for (const m of state.months) { wd = Math.max(wd, p.booking[m]?.[0] || 0); we = Math.max(we, p.booking[m]?.[1] || 0); }
+    for (const m of state.months) { wd = Math.max(wd, p.booking.weekdays?.[m] || 0); we = Math.max(we, p.booking.weekends?.[m] || 0); }
     if (!wd && !we) return null;
     const level = Math.max(wd, we);
     let label = level >= 5 ? "Book well ahead" : level === 4 ? "Reserve ahead" : level === 3 ? "Reservation recommended" : level === 2 ? "Walk-in usually fine" : "No reservation needed";
@@ -672,6 +1189,8 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
   /* ---------- Formatting ---------- */
 
   const day = (s) => new Date(s + "T12:00:00");
+  const todayNoon = () => { const t = new Date(); t.setHours(12, 0, 0, 0); return t; };
+  const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const fmtDay = (s, o) => day(s).toLocaleDateString("en-US", o);
   function fmtRange(a, b) {
     if (!a) return "";
@@ -684,23 +1203,26 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
     return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
   }
   const fmtCount = (n) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(n));
-  function ago(iso) {
-    if (!iso) return "";
-    const secs = (new Date(iso) - Date.now()) / 1000;
+  const toDate = (t) => (t?.toDate ? t.toDate() : t ? new Date(t) : null);
+  function ago(t) {
+    const d = toDate(t);
+    if (!d) return "";
+    const secs = (d - Date.now()) / 1000;
     const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
     for (const [unit, size] of [["day", 86400], ["hour", 3600], ["minute", 60]]) if (Math.abs(secs) >= size) return rtf.format(Math.round(secs / size), unit);
     return "just now";
   }
-  function daysToGo() {
-    if (!state.board.startDate) return "";
-    const today = new Date(); today.setHours(12, 0, 0, 0);
-    const d = Math.round((day(state.board.startDate) - today) / 864e5);
-    const end = state.board.endDate ? Math.round((day(state.board.endDate) - today) / 864e5) : d;
+  function daysToGoFor(start, end) {
+    if (!start) return "";
+    const today = todayNoon();
+    const d = Math.round((day(start) - today) / 864e5);
+    const e = end ? Math.round((day(end) - today) / 864e5) : d;
     if (d > 1) return `${d} days to go`;
     if (d === 1) return "Tomorrow!";
-    if (end >= 0) return "Happening now";
+    if (e >= 0) return "Happening now";
     return "";
   }
+  const daysToGo = () => daysToGoFor(state.board?.startDate, state.board?.endDate);
   const mapsUrl = (p) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name + (p.address ? ", " + p.address : ""))}&query_place_id=${encodeURIComponent(p.id)}`;
   const listColor = (name) => state.board.lists.find((l) => l.name === name)?.color || "var(--muted)";
 
@@ -747,31 +1269,14 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
     if (withList) bits.push(esc(p.lists.join(", ")));
     return `<p class="meta">${bits.join(" · ")}</p>`;
   }
-
-  /* ---------- View: all spots ---------- */
-
-  function scoresHTML(p) {
-    const mine = myScore(p.id);
-    const s = stats(p);
-    const btns = [1, 2, 3, 4, 5].map((v) =>
-      `<button type="button" class="rate-btn${mine === v ? ` s${v}` : ""}" data-rate="${v}" aria-pressed="${mine === v}" aria-label="${v} – ${SCORE_WORDS[v]}"><b>${v}</b><span>${SCORE_WORDS[v]}</span></button>`).join("");
-    return `
-      <div class="rate">
-        <span class="row-label">${state.me ? "Your rating" : "Rate it (pick your name first)"}</span>
-        <div class="rate-btns" role="group" aria-label="Your rating for ${esc(p.name)}">${btns}</div>
-        <p class="rate-legend">1 skip it · 3 sure · 5 must go</p>
-      </div>
-      <div class="group-col">
-        <div class="group-head">
-          <span class="row-label">Group</span>
-          ${s.count ? `<span class="avg"><b>${s.avg.toFixed(1)}</b><small>avg</small></span>` : ""}
-          ${tierHTML(s)}
-          ${s.split ? `<span class="split">Split vote</span>` : ""}
-        </div>
-        ${votesListHTML(p)}
+  function groupHeadHTML(s) {
+    return `<div class="group-head">
+        <span class="row-label">Group</span>
+        ${s.count ? `<span class="avg"><b>${s.avg.toFixed(1)}</b><small>avg</small></span>` : ""}
+        ${tierHTML(s)}
+        ${s.split ? `<span class="split">Split vote</span>` : ""}
       </div>`;
   }
-
   // Everyone's score for one place, highest first; people who haven't rated it go last.
   function votesListHTML(p) {
     if (!state.voters.length) return `<p class="votes-list empty">No one has joined yet</p>`;
@@ -784,6 +1289,24 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
         ? `<li${me} title="${esc(v.name)}: ${s} – ${SCORE_WORDS[s]}"><span class="nm">${esc(v.name)}</span><b class="sc s${s}">${s}</b></li>`
         : `<li${me} title="${esc(v.name)} hasn't rated this yet"><span class="nm">${esc(v.name)}</span><span class="sc none">–</span></li>`;
     }).join("")}</ul>`;
+  }
+
+  /* ---------- View: all spots ---------- */
+
+  function scoresHTML(p) {
+    const mine = myScore(p.id);
+    const btns = [1, 2, 3, 4, 5].map((v) =>
+      `<button type="button" class="rate-btn${mine === v ? ` s${v}` : ""}" data-rate="${v}" aria-pressed="${mine === v}" aria-label="${v} – ${SCORE_WORDS[v]}"><b>${v}</b><span>${SCORE_WORDS[v]}</span></button>`).join("");
+    return `
+      <div class="rate">
+        <span class="row-label">${state.me ? "Your rating" : "Rate it (pick your name first)"}</span>
+        <div class="rate-btns" role="group" aria-label="Your rating for ${esc(p.name)}">${btns}</div>
+        <p class="rate-legend">1 skip it · 3 sure · 5 must go</p>
+      </div>
+      <div class="group-col">
+        ${groupHeadHTML(stats(p))}
+        ${votesListHTML(p)}
+      </div>`;
   }
 
   function cardHTML(p) {
@@ -813,7 +1336,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
     if (state.unratedOnly) shown = shown.filter((p) => !myScore(p.id));
     const progress = state.me
       ? `<div class="progress" id="progress"><span>You've rated <b>${rated}</b> of ${all.length}</span><div class="track"><div class="fill" style="width:${(rated / all.length) * 100}%"></div></div></div>`
-      : `<p class="intro">Tap <b>${state.voters.length ? "your name" : "Join"}</b> at the top to start rating. Scores: 1 skip it · 2 meh · 3 sure · 4 want to · 5 must go.</p>`;
+      : `<p class="intro">Tap <b>${state.voters.length ? "Pick your name" : "Join"}</b> at the top to start rating. Scores: 1 skip it · 2 meh · 3 sure · 4 want to · 5 must go.</p>`;
 
     if (!shown.length) {
       return progress + `<div class="empty-note">${state.unratedOnly ? "You've rated everything here. Nice." : "Nothing in this list yet."}</div>`;
@@ -844,11 +1367,11 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
       $(".badges", card).innerHTML = badgesHTML(p);
     });
     const prog = $("#progress");
-    if (prog) {
+    if (prog && state.me) {
       const rated = places().filter((p) => myScore(p.id)).length;
       $("span", prog).innerHTML = `You've rated <b>${rated}</b> of ${places().length}`;
       $(".fill", prog).style.width = `${(rated / places().length) * 100}%`;
-    } else if (state.me) {
+    } else if (!!prog !== !!state.me) {
       render();
     }
   }
@@ -930,7 +1453,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
     const undecided = open.filter((p) => stats(p).tier === "wait").sort(order);
     const later = open.filter((p) => !wanted(p) && stats(p).tier !== "wait").sort(order);
     const walkins = shown.filter((p) => !isBooked(p) && !needs(p)).sort((a, b) => a.name.localeCompare(b.name));
-    const sec = (title, note, items) => (items.length ? `<section class="book-sec"><h2>${title} <span class="n" style="font:500 14px var(--font);color:var(--muted)">${items.length}</span></h2><p>${note}</p>${items.map(bookRowHTML).join("")}</section>` : "");
+    const sec = (title, note, items) => (items.length ? `<section class="book-sec"><h2>${title} <span class="n">${items.length}</span></h2><p>${note}</p>${items.map(bookRowHTML).join("")}</section>` : "");
     const togo = daysToGo();
     return `<p class="intro">${togo ? `<b>${esc(togo)}.</b> ` : ""}Booking levels are Wanderlog's estimates for ${esc(state.months.map((m) => new Date(2000, m, 1).toLocaleDateString("en-US", { month: "long" })).join(" and "))}. Mark spots booked and add details so everyone can see them.</p>
       ${sec("Book these first", "The group wants to go, and Wanderlog says to reserve.", first)}
@@ -941,9 +1464,145 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
       ${!first.length && !undecided.length && !booked.length && !later.length ? `<div class="empty-note">Nothing here needs a reservation.</div>` : ""}`;
   }
 
+  /* ---------- View: itinerary ---------- */
+
+  function itineraryItemHTML(it, byId) {
+    if (!it.placeId) {
+      return it.note ? `<li><span class="it-time">${it.time ? esc(fmtTime(it.time)) : ""}</span><div class="it-card note-card"><p style="margin:0">${esc(it.note)}</p></div></li>` : "";
+    }
+    const p = byId.get(it.placeId);
+    if (!p) return "";
+    const s = stats(p);
+    const time = it.time ? fmtTime(it.time) + (it.endTime ? `–${fmtTime(it.endTime)}` : "") : "";
+    return `<li>
+      <span class="it-time">${esc(time)}</span>
+      <div class="it-card" data-id="${esc(p.id)}">
+        ${thumbHTML(p, "pthumb")}
+        <div class="it-info">
+          <button class="pname" type="button" data-goto="${esc(p.id)}">${esc(p.name)}</button>
+          ${metaHTML(p, false)}
+          ${badgesHTML(p) ? `<span class="badges">${badgesHTML(p)}</span>` : ""}
+          ${it.note ? `<p class="note">${esc(it.note)}</p>` : ""}
+        </div>
+        <div class="it-score">
+          ${s.count ? `<span class="avg"><b>${s.avg.toFixed(1)}</b><small>avg</small></span>` : ""}
+          ${tierHTML(s)}
+        </div>
+      </div>
+    </li>`;
+  }
+
+  // Every day of the trip (empty ones too), with Wanderlog's planned places in order.
+  function renderItinerary() {
+    const b = state.board;
+    const byDate = new Map((b.itinerary || []).map((d) => [d.date, d]));
+    const dates = [];
+    if (b.startDate && b.endDate) {
+      for (const d = day(b.startDate); d <= day(b.endDate) && dates.length < 90; d.setDate(d.getDate() + 1)) dates.push(isoDay(d));
+    }
+    for (const d of byDate.keys()) if (!dates.includes(d)) dates.push(d);
+    dates.sort();
+    if (!dates.length) return `<div class="empty-note">Wanderlog doesn't have a day-by-day plan for this trip yet. Add places to days in Wanderlog's itinerary and they'll show up here.</div>`;
+    const byId = new Map(places().map((p) => [p.id, p]));
+    const planned = [...byDate.values()].reduce((n, d) => n + d.items.filter((it) => it.placeId && byId.has(it.placeId)).length, 0);
+    const today = isoDay(new Date());
+    return `<p class="intro">Wanderlog's day-by-day plan: ${planned} place${planned === 1 ? "" : "s"} across ${dates.length} day${dates.length === 1 ? "" : "s"}. Plan days in Wanderlog; they show up here after the next refresh.</p>
+      <div class="days">${dates.map((date) => {
+        const d = byDate.get(date);
+        const items = (d?.items || []).map((it) => itineraryItemHTML(it, byId)).join("");
+        const n = b.startDate ? Math.round((day(date) - day(b.startDate)) / 864e5) + 1 : 0;
+        return `<section class="day" aria-label="${esc(fmtDay(date, { weekday: "long", month: "long", day: "numeric" }))}">
+          <div class="day-head">
+            ${n >= 1 ? `<span class="day-num">Day ${n}</span>` : ""}
+            <h2>${esc(fmtDay(date, { weekday: "long", month: "short", day: "numeric" }))}</h2>
+            ${date === today ? `<span class="badge booked-b">Today</span>` : ""}
+            ${d?.title ? `<p class="day-title">${esc(d.title)}</p>` : ""}
+          </div>
+          ${d?.note ? `<p class="day-note">${esc(d.note)}</p>` : ""}
+          ${items ? `<ol class="day-list">${items}</ol>` : `<p class="day-empty">Nothing planned yet</p>`}
+        </section>`;
+      }).join("")}</div>`;
+  }
+
+  /* ---------- View: map ---------- */
+
+  const isDark = () => (document.documentElement.dataset.theme ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches);
+  const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  function renderMapView() {
+    const legend = TIER_ORDER.map((t) => `<li><span class="dot${t === "wait" ? " wait" : ""}"${t === "wait" ? "" : ` style="background:var(--v-${t})"`}></span>${TIERS[t].name}</li>`).join("");
+    return `<div class="map-wrap">
+      <div class="map" id="map" role="region" aria-label="Map of the trip's places"></div>
+      <ul class="map-legend" aria-label="Pin colors show the group's verdict">${legend}</ul>
+      <p class="side-note" id="mapNote"></p>
+    </div>`;
+  }
+
+  function popupHTML(p) {
+    const s = stats(p);
+    return `<div class="pop">
+      ${p.image ? `<img class="pop-img" src="${esc(p.image)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">` : ""}
+      <h3>${esc(p.name)}</h3>
+      ${metaHTML(p, true)}
+      ${badgesHTML(p) ? `<div class="badges">${badgesHTML(p)}</div>` : ""}
+      ${groupHeadHTML(s)}
+      ${votesListHTML(p)}
+      <div class="links"><button type="button" data-goto="${esc(p.id)}">See details & rate</button><a href="${esc(mapsUrl(p))}" target="_blank" rel="noopener">Google Maps ↗</a></div>
+    </div>`;
+  }
+
+  function initMap() {
+    const el = $("#map");
+    if (!el) return;
+    if (!window.L) { el.innerHTML = `<div class="empty-note">The map couldn't load. Check your connection and reload.</div>`; return; }
+    const map = L.map(el, { zoomControl: true, scrollWheelZoom: true });
+    L.tileLayer(`https://{s}.basemaps.cartocdn.com/${isDark() ? "dark_all" : "light_all"}/{z}/{x}/{y}{r}.png`, {
+      subdomains: "abcd", maxZoom: 20,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    }).addTo(map);
+    state.map = { map, layer: L.layerGroup().addTo(map), markers: new Map(), openId: null };
+    map.on("popupopen", (e) => { state.map.openId = e.popup._source?.options.placeId || null; });
+    map.on("popupclose", () => { if (state.map) state.map.openId = null; });
+    refreshMap(true);
+  }
+
+  // Pins colored by the group's verdict; "Definitely go" pins are bigger and drawn on top.
+  function refreshMap(fit) {
+    if (!state.map) return;
+    const { map, layer } = state.map;
+    const reopen = state.map.openId;
+    layer.clearLayers();
+    state.map.markers.clear();
+    const shown = places().filter(inList);
+    const pts = shown.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+    const surface = cssVar("--surface"), muted = cssVar("--muted");
+    const ordered = [...pts].sort((a, b) => TIER_ORDER.indexOf(stats(b).tier) - TIER_ORDER.indexOf(stats(a).tier));
+    for (const p of ordered) {
+      const t = stats(p).tier;
+      const marker = L.circleMarker([p.lat, p.lng], t === "wait"
+        ? { placeId: p.id, radius: 7, color: muted, weight: 1.5, dashArray: "3 3", fillColor: surface, fillOpacity: 1 }
+        : { placeId: p.id, radius: t === "def" ? 10 : 8, color: surface, weight: 2, fillColor: cssVar(`--v-${t}`), fillOpacity: 1 });
+      marker.bindPopup(() => popupHTML(p), { maxWidth: 280, minWidth: 250 });
+      marker.bindTooltip(p.name, { direction: "top", offset: [0, -8] });
+      layer.addLayer(marker);
+      state.map.markers.set(p.id, marker);
+    }
+    if (reopen && state.map.markers.has(reopen)) state.map.markers.get(reopen).openPopup();
+    const note = $("#mapNote");
+    if (note) note.textContent = `${pts.length} of ${places().length} places shown${shown.length < places().length ? " (filters apply)" : ""}. Tap a pin for details.`;
+    if (fit) {
+      if (pts.length) map.fitBounds(L.latLngBounds(pts.map((p) => [p.lat, p.lng])), { padding: [30, 30], maxZoom: 15 });
+      else map.setView([20, 0], 2);
+    }
+  }
+  function destroyMap() {
+    if (state.map) { state.map.map.remove(); state.map = null; }
+  }
+
   /* ---------- Summary side panel (whole-trip totals; ignores the filters) ---------- */
 
   function renderSide() {
+    if (!state.board) { $("#side").innerHTML = ""; return; }
     const all = places();
     const st = new Map(all.map((p) => [p.id, stats(p)]));
     const isGo = (p) => st.get(p.id).tier === "def";
@@ -975,7 +1634,10 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
 
     const meters = orderedVoters().map((v) => {
       const n = all.filter((p) => v.scores[p.id]).length;
-      return `<li><span class="nm" title="${esc(v.name)}">${esc(v.name)}</span><span class="meter" role="img" aria-label="${esc(v.name)} rated ${n} of ${all.length}"><span style="width:${(n / all.length) * 100}%"></span></span><b>${n}/${all.length}</b></li>`;
+      const remove = state.isPlanner
+        ? `<button class="remove-btn" type="button" data-remove-voter="${esc(v.id)}" title="Remove ${esc(v.name)} and their votes" aria-label="Remove ${esc(v.name)} and their votes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg></button>`
+        : "<span></span>";
+      return `<li><span class="nm" title="${esc(v.name)}">${esc(v.name)}</span><span class="meter" role="img" aria-label="${esc(v.name)} rated ${n} of ${all.length}"><span style="width:${(n / all.length) * 100}%"></span></span><b>${n}/${all.length}</b>${remove}</li>`;
     }).join("");
 
     $("#side").innerHTML = `
@@ -1023,17 +1685,36 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
 
   /* ---------- Rendering ---------- */
 
+  // The hero: destination photo, title, and the trip details line (dates, countdown, spots, last Wanderlog refresh).
   function renderHeader() {
-    const b = state.board;
-    $("#tripTitle").textContent = b.title;
-    $("#tripSub").textContent = [fmtRange(b.startDate, b.endDate), daysToGo(), `${b.places.length} spots`, lastSync ? `Refreshed from Wanderlog ${ago(lastSync)}` : ""].filter(Boolean).join(" · ");
+    const plan = state.plan;
+    if (!plan) return;
+    const hero = $("#hero");
+    hero.style.backgroundImage = plan.hero ? `url("${plan.hero.replace(/"/g, "%22")}")` : "";
+    $("#heroCredit").hidden = !plan.hero;
+    $("#tripPlace").textContent = plan.destination || "Trip Ranker";
+    $("#tripTitle").textContent = plan.title || NEW_TRIP;
+    document.title = `${plan.title || NEW_TRIP} · Trip Ranker`;
+    const sync = plan.status === "pending"
+      ? `${plan.places ? "Refreshing" : "Importing"} from Wanderlog…`
+      : plan.status === "error" ? "Couldn't refresh from Wanderlog"
+      : plan.syncedAt ? `Refreshed from Wanderlog ${ago(plan.syncedAt)}` : "";
+    const bits = [fmtRange(plan.startDate, plan.endDate), daysToGo(), state.board ? `${places().length} spots` : "", sync].filter(Boolean).map(esc);
+    $("#tripSub").innerHTML = bits.join(" · ")
+      + (state.isPlanner && plan.status !== "pending" ? ` · <button class="link-btn" type="button" id="refreshBtn">Refresh now</button>` : "");
+    $("#backLink").hidden = !state.isPlanner;
     const who = $("#whoBtn");
     const me = myVoter() || state.me;
+    who.hidden = !state.board;
     who.classList.toggle("empty", !me);
     who.innerHTML = me ? `<span class="lbl">Voting as</span> <b>${esc(me.name)}</b>` : "Pick your name";
-    $("#foot").innerHTML = `Places come from the group's Wanderlog trip${b.editedAt ? ` (last edited ${esc(ago(b.editedAt))})` : ""} and sync every hour. `
-      + `<a href="${SYNC_URL}" target="_blank" rel="noopener">Sync now ↗</a>`;
+    $("#foot").textContent = "Places come from the group's Wanderlog trip.";
   }
+  setInterval(() => { if (state.tripId && state.plan) renderHeader(); }, 60_000);
+  $("#tripSub").addEventListener("click", async (e) => {
+    if (!e.target.closest("#refreshBtn")) return;
+    try { await requestRefresh(state.tripId, state.plan?.title); } catch (err) { console.error(err); toast("Couldn't ask for a refresh."); }
+  });
 
   function renderChips() {
     const all = places();
@@ -1046,20 +1727,35 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
 
   function render() {
     state.pendingRender = false;
+    destroyMap();
+    const ready = !!state.board;
+    $(".bar").hidden = !ready;
+    $("#side").hidden = !ready;
+    if (!ready) {
+      const p = state.plan || {};
+      $("#main").innerHTML = p.status === "error"
+        ? `<div class="empty-note">Couldn't import this trip from Wanderlog: ${esc(p.error || "unknown error")}. Check the Wanderlog link is shared${state.isPlanner ? ", then use Refresh now above" : ""}.</div>`
+        : `<div class="empty-note">Importing places from Wanderlog… This usually takes 10–20 minutes. The page updates by itself.</div>`;
+      return;
+    }
     document.querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-selected", String(t.dataset.view === state.view)));
     $("#spotTools").hidden = state.view !== "spots";
+    $(".filters").hidden = state.view === "days";
     $("#sortSel").value = state.sort;
     $("#unratedOnly").checked = state.unratedOnly;
     renderChips();
     renderSide();
-    $("#main").innerHTML = state.view === "picks" ? renderPicks() : state.view === "book" ? renderBook() : renderSpots();
+    $("#main").innerHTML = state.view === "picks" ? renderPicks() : state.view === "book" ? renderBook()
+      : state.view === "days" ? renderItinerary() : state.view === "map" ? renderMapView() : renderSpots();
+    if (state.view === "map") initMap();
   }
 
-  // Data changed: patch cards in place on the spots view; re-render other views, but never under someone typing.
+  // Data changed: patch in place where we can (cards, map pins) so nothing jumps; never re-render under someone typing.
   function scheduleRender() {
     if (!state.board) return;
     renderSide();
     if (state.view === "spots" && document.querySelector("#main .spot")) return refreshSpots();
+    if (state.view === "map" && state.map) return refreshMap(false);
     if (document.activeElement?.matches?.("[data-note]")) { state.pendingRender = true; return; }
     render();
   }
@@ -1087,7 +1783,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
   }
   function chooseVoter(v) {
     state.me = { id: v.id, name: v.name };
-    lsSet(`tripRanker.me.${state.boardId}`, JSON.stringify(state.me));
+    lsSet(`tripRanker.me.${state.tripId}`, JSON.stringify(state.me));
     $("#whoDlg").close();
     renderHeader();
     render();
@@ -1096,7 +1792,8 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
     const dlg = $("#whoDlg");
     $("#whoHint").textContent = hint || "Pick your name. Your scores are saved under it, so you can open this link on any device and pick up where you left off.";
     $("#whoNames").innerHTML = orderedVoters().map((v) => `<button type="button" data-voter="${esc(v.id)}">${esc(v.name)}</button>`).join("");
-    $("#whoInput").value = "";
+    const first = (state.user?.displayName || "").split(" ")[0];
+    $("#whoInput").value = first && !state.voters.some((v) => v.id === slugify(first)) ? first : "";
     if (!dlg.open) dlg.showModal();
   }
   $("#whoNames").addEventListener("click", (e) => {
@@ -1107,18 +1804,18 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
   $("#whoForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const name = $("#whoInput").value.trim().replace(/\s+/g, " ").slice(0, 30);
-    if (!name) return;
+    if (!name || !state.tripId) return;
     const id = slugify(name) || `voter-${Math.random().toString(36).slice(2, 8)}`;
     const existing = state.voters.find((v) => v.id === id);
     if (existing) return chooseVoter(existing);
-    if (!votersRef) return;
     try {
-      await votersRef.doc(id).set({ name, scores: {}, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      await votersRef().doc(id).set({ name, scores: {}, updatedAt: FV().serverTimestamp() }, { merge: true });
       chooseVoter({ id, name });
     } catch (err) { dbError(err); $("#whoDlg").close(); }
   });
   $("#whoLater").addEventListener("click", () => $("#whoDlg").close());
   $("#whoBtn").addEventListener("click", () => openWho());
+  $("#shareBtn").addEventListener("click", () => copyLink(state.tripId, state.plan?.title));
 
   /* ---------- Events ---------- */
 
@@ -1127,7 +1824,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
     if (!t || t.dataset.view === state.view) return;
     state.view = t.dataset.view;
     render();
-    window.scrollTo({ top: 0 });
+    $(".bar").scrollIntoView({ block: "start" });
   });
   $("#listChips").addEventListener("click", (e) => {
     if (e.target.closest("[data-clear-kind]")) { state.kind = null; return render(); }
@@ -1139,12 +1836,13 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
 
   $("#side").addEventListener("click", (e) => {
     if (e.target.closest("#sideClose")) return setDrawer(false);
+    const rm = e.target.closest("[data-remove-voter]");
+    if (rm) return removeVoter(rm.dataset.removeVoter);
     const k = e.target.closest("[data-kind]");
     if (!k) return;
     state.kind = state.kind === k.dataset.kind ? null : k.dataset.kind;
     render();
     if (drawerMode() && state.kind) setDrawer(false);
-    window.scrollTo({ top: 0 });
   });
   $("#dashBtn").addEventListener("click", () => setDrawer(true));
   $("#scrim").addEventListener("click", () => setDrawer(false));
@@ -1171,25 +1869,13 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
     if (e.target.matches("[data-note]") && state.pendingRender) setTimeout(() => { if (!document.activeElement?.matches?.("[data-note]")) render(); }, 0);
   });
 
-  $("#themeBtn").addEventListener("click", () => {
-    const dark = document.documentElement.dataset.theme
-      ? document.documentElement.dataset.theme === "dark"
-      : matchMedia("(prefers-color-scheme: dark)").matches;
-    const next = dark ? "light" : "dark";
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".theme-btn")) return;
+    const next = isDark() ? "light" : "dark";
     document.documentElement.dataset.theme = next;
     lsSet("theme", next);
+    if (state.view === "map" && state.map) render(); // switch map tiles
   });
-
-  window.addEventListener("hashchange", () => {
-    const parsed = parseHash(location.hash);
-    if (parsed && (parsed.slug !== state.slug || parsed.secret !== state.secret)) openBoard();
-    else if (!parsed && location.hash) openBoard();
-  });
-
-  openBoard();
-  loadLastSync();
-  setInterval(() => { if (state.board) renderHeader(); }, 60_000);
-  setInterval(loadLastSync, 10 * 60_000);
 })();
 </script>
 </body>

@@ -1,10 +1,10 @@
-name: Sync from Wanderlog
+name: Import trips from Wanderlog
 
-# Pulls each trip in the WANDERLOG_TRIPS secret twice an hour (and on demand from the Actions tab),
-# then commits data/*.json if anything changed. GitHub Pages redeploys on the commit.
+# Every 10 minutes: imports trips planners just added, and refreshes the others once an hour.
+# Run it by hand from the Actions tab ("Run workflow") to import right away.
 on:
   schedule:
-    - cron: "7,37 * * * *"
+    - cron: "*/10 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -17,20 +17,26 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Pull trips from Wanderlog
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Import trips
         run: node scripts/sync-wanderlog.mjs
         env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          PLANNER_OWNER: ${{ secrets.PLANNER_OWNER }}
           WANDERLOG_TRIPS: ${{ secrets.WANDERLOG_TRIPS }}
-      - name: Commit changes
+      # GitHub pauses scheduled workflows in repos with no commits for 60 days. Nudge it before then.
+      - name: Keep the schedule running
         run: |
-          if [ -z "$(git status --porcelain -- data)" ]; then echo "No changes."; exit 0; fi
+          last=$(git log -1 --format=%ct)
+          if [ $(( $(date +%s) - last )) -lt $(( 45 * 86400 )) ]; then exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
-          git add data
-          git commit -m "Sync from Wanderlog"
+          git commit --allow-empty -m "Keep the scheduled import running"
           git push

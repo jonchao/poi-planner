@@ -1,47 +1,51 @@
 # Trip Ranker
 
-A page for deciding, as a group, which places from a Wanderlog trip are worth going to.
+Plan trips with a group: pull each trip's places from Wanderlog, have everyone rate them, and see what the
+group most wants to do and what needs a reservation.
 
-- **All spots**: every place from the Wanderlog trip with a photo, a short description, and Wanderlog's
-  estimate of whether you need a reservation. Everyone rates each place 1 (skip it) to 5 (must go), and
-  each person's score shows on the place.
-- **Group picks**: places ranked into tiers. *Definitely go* means an average of 4 or more with nobody below 3.
-- **Reservations**: places that need booking, starting with the ones the group wants. Anyone can mark a place
-  booked and add details.
-- **Summary** (side panel): totals by type (restaurants, cafés & bakeries, bars, sights…), the group's
-  verdict, and who has voted. Tap a type to filter.
+Live at <https://jonchao.github.io/trip-ranker/>.
 
-Live at <https://jonchao.github.io/trip-ranker/>, but each trip opens through its own private board link
-(`…/trip-ranker/#<slug>:<secret>`). Bookmark it or share it with the group.
+## Using it
+
+- **Planners** (you and your co-planners) sign in with Google and see **Your trips**. Add a trip by pasting its
+  Wanderlog link. Its places appear within about 10–20 minutes. From each trip card you can copy its link,
+  refresh it from Wanderlog, rename it, or delete it. The owner adds and removes co-planners at the bottom.
+- **Friends** open a trip's link (no account). They pick their name once and rate places 1 (skip it) to 5 (must go).
+
+Each trip has:
+
+- **All spots**: every place with a photo, short description, Wanderlog's reservation estimate, your rating,
+  and everyone's scores.
+- **Group picks**: places ranked into tiers. *Definitely go* = average 4+ and nobody below 3.
+- **Reservations**: what still needs booking, starting with what the group wants. Anyone can mark a place booked.
+- **Itinerary**: Wanderlog's day-by-day plan, every day of the trip.
+- **Map**: every place as a pin colored by the group's verdict.
+- **Summary** (side panel): totals by type (restaurants, cafés & bakeries, bars, sights…), the group's verdict,
+  and who has voted. Planners can remove a voter and their votes from here.
+
+The header shows when the trip last refreshed from Wanderlog.
 
 ## How it works
 
-- `scripts/sync-wanderlog.mjs` pulls each trip from Wanderlog's trip API, keeps only the places (never
-  hotels or flights), and writes `data/<slug>.json` **encrypted** with the board secret. The repo is public,
-  but the trip can only be read with the board link.
-- `.github/workflows/sync.yml` runs the sync every hour and commits changes. Run it on demand from the
-  [Actions tab](https://github.com/jonchao/trip-ranker/actions/workflows/sync.yml) ("Run workflow").
-- Votes and booking notes live in Trip Ranker's own Firebase project, in Firestore under `rankBoards/{boardId}`.
-  The board id is derived from the link's secret. Browsers sign in anonymously. Rules are in `firestore.rules`;
-  after changing them, paste them into Firebase console → Firestore → Rules → Publish.
-- People pick their name the first time they open a board. Scores are saved under that name, so the same
-  person can switch devices. It runs on trust: anyone with the link can vote as anyone.
+- Everything lives in the `poi-planner-de173` Firebase project (Firestore + Auth):
+  - `team/main`: the owner and co-planners (Google emails)
+  - `plans/{tripId}`: a trip's title, dates, places, and itinerary
+  - `planSources/{tripId}`: the trip's Wanderlog link (planners only)
+  - `rankBoards/{tripId}/voters|spots`: everyone's ratings and booking notes
 
-## Trips
+  Trip ids are long and random; knowing a trip's link is what lets someone open it.
+  Rules are in `firestore.rules`. After changing them, paste them into Firebase console → Firestore → Rules → Publish.
+- The browser can't read Wanderlog directly, so a GitHub Actions job (`.github/workflows/sync.yml`, every 10 minutes)
+  imports new trips and refreshes the rest hourly. It runs `scripts/sync-wanderlog.mjs`, which uses
+  `scripts/wanderlog.mjs` to read a trip. Hotels and flights are never copied. Run it on demand from the
+  [Actions tab](https://github.com/jonchao/trip-ranker/actions/workflows/sync.yml).
 
-Trips are listed in the `WANDERLOG_TRIPS` repository secret, one per line:
+## Setup (once)
 
-```
-<slug> <board secret> <wanderlog link>
-```
-
-The Wanderlog link can be the view-only share link. To add a trip, make a secret with
-`node -e "console.log(require('crypto').randomBytes(16).toString('base64url'))"`, add a line to the secret
-(and to `trips.local`, which is git-ignored, for local runs), then run the workflow.
-
-Run locally:
-
-```
-node scripts/sync-wanderlog.mjs --links
-python3 -m http.server 8000
-```
+1. Firebase console → Authentication → Sign-in method: enable **Anonymous** and **Google**. Under Settings →
+   Authorized domains, add `jonchao.github.io`.
+2. Firebase console → Project settings → Service accounts → Generate new private key, then:
+   `gh secret set FIREBASE_SERVICE_ACCOUNT --repo jonchao/trip-ranker < key.json` and delete the file.
+3. `gh secret set PLANNER_OWNER --repo jonchao/trip-ranker` with the owner's Google email. The first sync run
+   creates the planner list from it.
+4. Publish `firestore.rules`.

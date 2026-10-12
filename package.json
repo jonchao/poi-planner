@@ -1,0 +1,15 @@
+{
+  "name": "trip-ranker",
+  "private": true,
+  "type": "module",
+  "description": "Imports Wanderlog trips into Firestore for the Trip Ranker site",
+  "scripts": {
+    "sync": "node scripts/sync-wanderlog.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "firebase-admin": "^14.5.0"
+  }
+}
