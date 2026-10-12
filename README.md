@@ -10,16 +10,18 @@ Live at <https://jonchao.github.io/poi-planner/>.
 - **Planners** (you and your co-planners) sign in with Google and see **Your trips**. Add a trip by pasting its
   Wanderlog link. Its places appear within about 10–20 minutes. From each trip card you can copy its link,
   refresh it from Wanderlog, rename it, or delete it. The owner adds and removes co-planners at the bottom.
-- **Friends** open a trip's link (no account). They pick their name once and rate places 1 (skip it) to 5 (must go).
+- **Friends** open a trip's link (no account). They pick their name once, rate places 1 (skip it) to 5 (love it),
+  and pick their **Top 5**: up to five must-gos each. Anything in someone's Top 5 is a **Must go** everywhere.
 
 Each trip has:
 
 - **All spots**: every place with a photo, short description, Wanderlog's reservation estimate, your rating,
   and everyone's scores.
-- **Group picks**: places ranked into tiers. *Definitely go* = average 4+ and nobody below 3.
+- **Group picks**: places ranked into tiers. *Must go* = in someone's Top 5; *Definitely go* = average 4+ and nobody
+  below 3.
 - **Reservations**: what still needs booking, starting with what the group wants. Anyone can mark a place booked.
 - **Itinerary**: Wanderlog's day-by-day plan, every day of the trip.
-- **Map**: every place as a pin colored by the group's verdict.
+- **Map**: every place as a pin colored by the group's verdict (OpenStreetMap tiles, no API key).
 - **Summary** (side panel): totals by type (restaurants, cafés & bakeries, bars, sights…), the group's verdict,
   and who has voted. Planners can remove a voter and their votes from here.
 
@@ -34,7 +36,7 @@ The header shows when the trip last refreshed from Wanderlog.
   - `rankBoards/{tripId}/voters|spots`: everyone's ratings and booking notes
 
   Trip ids are long and random; knowing a trip's link is what lets someone open it.
-  Rules are in `firestore.rules`. After changing them, paste them into Firebase console → Firestore → Rules → Publish.
+  Rules are in `firestore.rules`; `.github/workflows/rules.yml` publishes them whenever they change on main.
 - The browser can't read Wanderlog directly, so a GitHub Actions job (`.github/workflows/sync.yml`, every 10 minutes)
   imports new trips and refreshes the rest hourly. It runs `scripts/sync-wanderlog.mjs`, which uses
   `scripts/wanderlog.mjs` to read a trip. Hotels and flights are never copied. Run it on demand from the
@@ -48,4 +50,4 @@ The header shows when the trip last refreshed from Wanderlog.
    `gh secret set FIREBASE_SERVICE_ACCOUNT --repo jonchao/poi-planner < key.json` and delete the file.
 3. `gh secret set PLANNER_OWNER --repo jonchao/poi-planner` with the owner's Google email. The first sync run
    creates the planner list from it.
-4. Publish `firestore.rules`.
+4. Push (or run the "Publish Firestore rules" workflow) to publish `firestore.rules`.
