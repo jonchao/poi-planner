@@ -117,6 +117,7 @@ app-switcher { color: var(--ink); --app-switcher-hover-bg: var(--surface-2); }
 .hero h1 { text-shadow: 0 2px 16px rgba(0,0,0,.35); }
 .hero .sub { color: rgba(255,255,255,.9); font-size: 14.5px; text-shadow: 0 1px 8px rgba(0,0,0,.4); }
 .hero .sub .link-btn { color: #fff; }
+.hero .sub a.link-btn { white-space: nowrap; }
 .hero-credit { position: absolute; right: 12px; bottom: 6px; z-index: 1; font-size: 11px; color: rgba(255,255,255,.6); }
 
 /* Sticky bar: tabs + filters */
@@ -202,11 +203,14 @@ main { padding: 16px 0 40px; }
 .group-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .votes-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
 .votes-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; }
-.votes-list .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.votes-list .nm { min-width: 0; white-space: nowrap; }
+.votes-list .nm > * { flex: none; }
+.votes-list .nm .nt { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .votes-list li.me .nm { font-weight: 700; }
 .votes-list .sc { display: grid; place-items: center; flex: none; min-width: 26px; height: 22px; padding: 0 6px; border-radius: 6px; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; background: var(--pc); color: var(--pc-on); }
 .votes-list .sc.none { background: none; color: var(--muted); font-weight: 500; }
 .votes-list .nm, .meters .nm { display: inline-flex; align-items: center; gap: 6px; }
+.votes-list .nm { display: flex; gap: 5px; }
 .pdot { display: inline-block; flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--pc, var(--muted)); }
 .votes-list.empty { color: var(--muted); font-size: 13px; }
 .row-label { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
@@ -227,7 +231,7 @@ main { padding: 16px 0 40px; }
 .must-btn b { color: var(--muted); }
 .must-btn[aria-pressed="true"] b, .must-btn[aria-pressed="true"] span { color: var(--pc-on, #fff); opacity: 1; }
 .must-btn.full { opacity: .45; }
-.top-star { color: var(--star); margin-left: 4px; font-size: 12px; }
+.top-star { color: var(--star); font-size: 12px; }
 .top-line { color: var(--ink) !important; }
 .top-line .top-star { margin: 0 4px 0 0; }
 .avg { display: inline-flex; align-items: baseline; gap: 4px; }
@@ -478,11 +482,11 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
   .hero-inner { min-height: 230px; }
   .spot { grid-template-columns: 64px minmax(0, 1fr); grid-template-areas: "thumb info" "scores scores"; padding: 14px; gap: 10px 12px; }
   .thumb { width: 64px; height: 64px; font-size: 22px; }
-  .rate-btns { max-width: none; gap: 3px; }
+  .rate-btns { max-width: none; gap: 4px; }
   .rate-btn { padding: 6px 0; border-radius: 8px; }
-  .rate-btn span { display: none; }
-  .rate-legend { display: block; }
-  .scores { grid-template-columns: minmax(0, 1fr) 92px; gap: 10px 10px; }
+  .rate-btn span { font-size: 10.5px; }
+  .scores { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .votes-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 16px; }
   .who span.lbl { display: none; }
   .tab { padding: 10px 7px; }
   .tab .long { display: none; }
@@ -504,7 +508,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
   .it-card .pthumb { width: 44px; height: 44px; }
   .it-score { grid-column: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 }
-@media (max-width: 359px) { .scores { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 359px) { .rate-btn span { display: none; } .rate-legend { display: block; } .votes-list { grid-template-columns: minmax(0, 1fr); } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
@@ -1189,13 +1193,14 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
       auth.signInAnonymously().catch(() => showGate(`<p>Couldn't connect. Check your connection and reload.</p>`));
       return; // signing in calls route() again
     }
-    if (state.tripId === id && tripUnsubs.length) { renderHeader(); return; }
+    if (state.tripId === id && tripUnsubs.length) { loadWanderlogLink(id); renderHeader(); return; }
     stopTrip();
     Object.assign(state, {
       tripId: id, plan: null, board: null, boardKey: "", months: [], voters: [], spots: {},
       view: "spots", list: "all", kind: null, sort: "list", unratedOnly: false,
-      votersLoaded: false, greeted: false,
+      votersLoaded: false, greeted: false, wanderlogLink: null,
     });
+    loadWanderlogLink(id);
     try { state.me = JSON.parse(lsGet(`tripRanker.me.${id}`) || "null"); } catch (e) { state.me = null; }
     showGate(`<p>Opening trip…</p>`);
     let first = true;
@@ -1222,6 +1227,17 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
       showGate(`<p>Lost the connection to this trip. Reload to try again.</p>`);
     }));
     connectVotes();
+  }
+
+  // Planners get a link to the trip in Wanderlog (planSources is planner-only, so guests never see it).
+  async function loadWanderlogLink(id) {
+    if (!state.isPlanner) return;
+    try {
+      const link = (await db.collection("planSources").doc(id).get()).data()?.link || null;
+      if (state.tripId !== id || link === state.wanderlogLink) return;
+      state.wanderlogLink = link;
+      renderHeader();
+    } catch (e) { /* not a planner after all */ }
   }
 
   function tripMissing() {
@@ -1535,8 +1551,8 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     return `<ul class="votes-list" aria-label="Everyone's scores for ${esc(p.name)}">${rows.map(({ v, s }) => {
       const me = v.id === state.me?.id ? ` class="me"` : "";
       return s
-        ? `<li${me} style="${personStyle(v)}" title="${esc(v.name)}: ${s} – ${SCORE_WORDS[s]}"><span class="nm">${pdot(v)}${esc(v.name)}${me ? ' <span class="you">(you)</span>' : ""}${v.top.includes(p.id) ? topStar(v) : ""}</span><b class="sc">${s}</b></li>`
-        : `<li${me} style="${personStyle(v)}" title="${esc(v.name)} hasn't rated this yet"><span class="nm">${pdot(v)}${esc(v.name)}${me ? ' <span class="you">(you)</span>' : ""}${v.top.includes(p.id) ? topStar(v) : ""}</span><span class="sc none">–</span></li>`;
+        ? `<li${me} style="${personStyle(v)}" title="${esc(v.name)}: ${s} – ${SCORE_WORDS[s]}"><span class="nm">${pdot(v)}<span class="nt">${esc(v.name)}</span>${me ? '<span class="you">(you)</span>' : ""}${v.top.includes(p.id) ? topStar(v) : ""}</span><b class="sc">${s}</b></li>`
+        : `<li${me} style="${personStyle(v)}" title="${esc(v.name)} hasn't rated this yet"><span class="nm">${pdot(v)}<span class="nt">${esc(v.name)}</span>${me ? '<span class="you">(you)</span>' : ""}${v.top.includes(p.id) ? topStar(v) : ""}</span><span class="sc none">–</span></li>`;
     }).join("")}</ul>`;
   }
 
@@ -2031,7 +2047,8 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
       : plan.syncedAt ? `Refreshed from Wanderlog ${ago(plan.syncedAt)}` : "";
     const bits = [fmtRange(plan.startDate, plan.endDate), daysToGo(), state.board ? `${places().length} spots` : "", sync].filter(Boolean).map(esc);
     $("#tripSub").innerHTML = bits.join(" · ")
-      + (state.isPlanner && plan.status !== "pending" ? ` · <button class="link-btn" type="button" id="refreshBtn">Refresh now</button>` : "");
+      + (state.isPlanner && plan.status !== "pending" ? ` · <button class="link-btn" type="button" id="refreshBtn">Refresh now</button>` : "")
+      + (state.isPlanner && state.wanderlogLink ? ` · <a class="link-btn" href="${esc(state.wanderlogLink)}" target="_blank" rel="noopener">Open in Wanderlog ↗</a>` : "");
     $("#backLink").hidden = !state.isPlanner;
     const who = $("#whoBtn");
     const me = myVoter() || state.me;
