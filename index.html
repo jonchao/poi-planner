@@ -144,6 +144,8 @@ app-switcher { color: var(--ink); --app-switcher-hover-bg: var(--surface-2); }
 .names button[aria-pressed="true"] { outline: 2px solid var(--pc, var(--accent)); outline-offset: 2px; }
 .dlg-close { position: absolute; top: 12px; right: 12px; color: var(--muted); }
 #whoTitle { padding-right: 40px; }
+.who-signin { margin: 14px 0 0 !important; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13px; }
+.who-signin .not-you { color: var(--accent); font-weight: 600; }
 .who-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: -4px 0 16px; padding: 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; }
 .who-actions .lbl { flex: 1 1 100%; margin: 0; font-size: 13px; color: var(--muted); }
 .btn.danger-ghost { background: transparent; color: var(--hot); border: 1px solid color-mix(in srgb, var(--hot) 45%, transparent); }
@@ -611,6 +613,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     <button class="btn" type="submit">Join</button>
   </form>
   <button class="later" id="whoLater" type="button">Just looking for now</button>
+  <p class="who-signin" id="whoSignin" hidden>Trip planner? <button class="not-you" type="button" id="whoSigninBtn">Sign in</button> to remove voters and manage trips.</p>
 </dialog>
 
 <dialog class="dlg" id="newDlg" aria-labelledby="newTitle">
@@ -2044,6 +2047,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
         : state.me ? `You're voting as ${myVoter()?.name || state.me.name}. Tap a different name to switch, or add yours.`
         : "Pick your name. Your scores are saved under it, so you can open this link on any device and pick up where you left off.");
     renderWhoNames();
+    $("#whoSignin").hidden = state.isPlanner;
     const first = (state.user?.displayName || "").split(" ")[0];
     $("#whoInput").value = first && !state.voters.some((v) => v.id === slugify(first)) ? first : "";
     if (!dlg.open) dlg.showModal();
@@ -2079,6 +2083,12 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     } catch (err) { dbError(err); $("#whoDlg").close(); }
   });
   $("#whoLater").addEventListener("click", () => $("#whoDlg").close());
+  // Guests reach the sign-in screen from here; after signing in, the trip list leads back to this trip.
+  $("#whoSigninBtn").addEventListener("click", () => {
+    $("#whoDlg").close();
+    if (state.user && !state.user.isAnonymous) return signIn(); // signed in with a non-planner account: offer a different one
+    location.hash = "";
+  });
   $("#whoBtn").addEventListener("click", () => openWho());
   $("#voterChip").addEventListener("click", () => openWho());
   $("#shareBtn").addEventListener("click", () => copyLink(state.tripId, state.plan?.title));
