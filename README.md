@@ -26,7 +26,7 @@ Each trip has:
   and who has voted.
 - **Who's voting?** (tap your name at the top): switch names or join. Planners can also pick a name and remove that
   voter and their votes (after a confirmation).
-- **Reset my votes** (after your progress line on All spots, or your own name in Who's voting): clears all your
+- **Reset my votes** (in Who's voting, or after your progress line on All spots on wider screens): clears all your
   ratings and must-gos on the trip, after a confirmation. Your name stays.
 
 The header shows when the trip last refreshed from Wanderlog.
@@ -42,7 +42,9 @@ The header shows when the trip last refreshed from Wanderlog.
   Trip ids are long and random; knowing a trip's link is what lets someone open it.
   Rules are in `firestore.rules`; `.github/workflows/rules.yml` publishes them whenever they change on main.
 - The browser can't read Wanderlog directly, so a GitHub Actions job (`.github/workflows/sync.yml`, every 10 minutes)
-  imports new trips and refreshes the rest hourly. It runs `scripts/sync-wanderlog.mjs`, which uses
+  imports new trips and refreshes the rest hourly. GitHub's timer can lag by hours, so the owner can turn on
+  **Instant imports** on the trips page: a fine-grained GitHub token (this repo only, Actions read/write) stored in
+  `config/github`, which lets Refresh and New trip start the job right away. It runs `scripts/sync-wanderlog.mjs`, which uses
   `scripts/wanderlog.mjs` to read a trip. Hotels and flights are never copied. Run it on demand from the
   [Actions tab](https://github.com/jonchao/poi-planner/actions/workflows/sync.yml).
 

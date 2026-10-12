@@ -433,6 +433,9 @@ footer a { color: inherit; }
 .team li .em { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .team li small { color: var(--muted); }
 .team form { display: flex; gap: 8px; }
+.team ol { margin: 0 0 12px; padding-left: 20px; color: var(--muted); font-size: 13.5px; display: grid; gap: 3px; }
+.import-on { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--ok-soft); color: var(--ok); border-radius: 10px; font-size: 14px; font-weight: 600; }
+.import-on .btn { margin-left: auto; }
 .team input { flex: 1; min-width: 0; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 9px 12px; }
 
 /* Gate (sign in / messages) and dialogs */
@@ -471,6 +474,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
 .toast { position: fixed; left: 50%; bottom: 24px; z-index: 50; transform: translateX(-50%); max-width: calc(100vw - 32px); padding: 10px 16px; border-radius: 10px; background: var(--ink); color: var(--bg); font-size: 14px; font-weight: 500; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
 
 @media (max-width: 600px) {
+  .progress { display: none; }
   .hero-inner { min-height: 230px; }
   .spot { grid-template-columns: 64px minmax(0, 1fr); grid-template-areas: "thumb info" "scores scores"; padding: 14px; gap: 10px 12px; }
   .thumb { width: 64px; height: 64px; font-size: 22px; }
@@ -531,6 +535,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     </div>
     <div class="trip-grid" id="tripGrid"></div>
     <section class="team" id="teamSec" aria-labelledby="teamTitle"></section>
+    <section class="team" id="importSec" aria-labelledby="importTitle"></section>
   </main>
 </div>
 
@@ -613,12 +618,13 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     <button class="btn" type="submit">Join</button>
   </form>
   <button class="later" id="whoLater" type="button">Just looking for now</button>
+  <p class="who-signin" id="whoReset" hidden>Want to start over? <button class="not-you" type="button" id="whoResetBtn">Reset my votes</button></p>
   <p class="who-signin" id="whoSignin" hidden>Trip planner? <button class="not-you" type="button" id="whoSigninBtn">Sign in</button> to remove voters and manage trips.</p>
 </dialog>
 
 <dialog class="dlg" id="newDlg" aria-labelledby="newTitle">
   <h2 id="newTitle">New trip</h2>
-  <p>Paste the trip's Wanderlog link (in Wanderlog: Share → copy link). Its places show up here within about 10–20 minutes.</p>
+  <p>Paste the trip's Wanderlog link (in Wanderlog: Share → copy link). Its places show up here once it's imported.</p>
   <form id="newForm" novalidate>
     <label>Wanderlog link<input id="newLink" inputmode="url" autocomplete="off" placeholder="https://wanderlog.com/view/…"></label>
     <label>Name <small>(optional; uses the Wanderlog trip name)</small><input id="newName" maxlength="80" autocomplete="off"></label>
@@ -958,7 +964,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
 
   function tripStatus(p) {
     if (p.status === "error") return `<p class="trip-status err">Couldn't import from Wanderlog: ${esc(p.error || "unknown error")}</p>`;
-    if (p.status === "pending") return `<p class="trip-status pending">${p.places ? "Refreshing" : "Importing"} from Wanderlog… usually within 10–20 minutes</p>`;
+    if (p.status === "pending") return `<p class="trip-status pending">${p.places ? "Refreshing" : "Importing"} from Wanderlog…</p>`;
     return p.syncedAt ? `<p class="trip-status">Refreshed from Wanderlog ${esc(ago(p.syncedAt))}</p>` : "";
   }
 
@@ -997,6 +1003,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     const team = state.team;
     if (!team) { $("#teamSec").innerHTML = ""; return; }
     const planners = [...(team.planners || [])].sort((a, b) => (a === team.owner ? -1 : b === team.owner ? 1 : a.localeCompare(b)));
+    renderImportSec();
     $("#teamSec").innerHTML = `
       <h2 id="teamTitle">Co-planners</h2>
       <p>Co-planners sign in with Google to see every trip and add new ones. Friends don't need this: they vote from a trip's link.</p>
@@ -1053,13 +1060,85 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     } catch (err) { console.error(err); toast("That didn't work. Try again."); }
   });
 
+  // Instant imports: with a GitHub token that can only start this repo's import job, Refresh and New trip run the
+  // import right away instead of waiting for GitHub's schedule (which can lag by hours).
+  const IMPORT_WORKFLOW = "https://api.github.com/repos/jonchao/poi-planner/actions/workflows/sync.yml";
+  let ghToken; // undefined until loaded; null when there isn't one
+  async function getGhToken() {
+    if (ghToken !== undefined) return ghToken;
+    try { ghToken = (await db.collection("config").doc("github").get()).data()?.token || null; } catch (e) { ghToken = null; }
+    return ghToken;
+  }
+  async function startImport() {
+    const token = await getGhToken();
+    if (!token) return false;
+    try {
+      const res = await fetch(`${IMPORT_WORKFLOW}/dispatches`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" },
+        body: JSON.stringify({ ref: "main" }),
+      });
+      return res.status === 204;
+    } catch (e) { return false; }
+  }
+  const importNote = (now) => (now ? "Importing now; it usually takes about a minute." : "It will import on GitHub's next scheduled run, which can take a while.");
+
   async function requestRefresh(id, title) {
     const batch = db.batch();
     batch.update(db.collection("plans").doc(id), { status: "pending" });
     batch.update(db.collection("planSources").doc(id), { requestedAt: FV().serverTimestamp() });
     await batch.commit();
-    toast(`${title} will refresh from Wanderlog within about 10–20 minutes.`);
+    toast(`Refreshing ${title} from Wanderlog. ${importNote(await startImport())}`);
   }
+
+  async function renderImportSec() {
+    const sec = $("#importSec");
+    if (!state.isPlanner) { sec.innerHTML = ""; return; }
+    const on = !!(await getGhToken());
+    sec.innerHTML = `
+      <h2 id="importTitle">Instant imports</h2>
+      <p>GitHub's timer can take hours to run the Wanderlog import. With a GitHub token, <b>Refresh</b> and <b>New trip</b> start it right away.</p>
+      ${on
+        ? `<div class="import-on">✓ On: imports start right away${state.isOwner ? `<button class="btn ghost small" type="button" id="ghRemove">Turn off</button>` : ""}</div>`
+        : state.isOwner
+          ? `<ol>
+               <li>Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub → new fine-grained token</a>.</li>
+               <li>Repository access: <b>Only select repositories</b> → <b>poi-planner</b>.</li>
+               <li>Permissions → Repository → <b>Actions</b>: <b>Read and write</b>. Nothing else.</li>
+               <li>Generate, copy it, and paste it here.</li>
+             </ol>
+             <form id="ghForm"><input id="ghToken" type="password" placeholder="github_pat_…" aria-label="GitHub token" autocomplete="off"><button class="btn" type="submit">Save</button></form>
+             <p class="form-error" id="ghError" hidden></p>`
+          : `<p>Off. The trip owner can turn this on.</p>`}`;
+  }
+  $("#importSec").addEventListener("submit", async (e) => {
+    if (e.target.id !== "ghForm") return;
+    e.preventDefault();
+    const token = $("#ghToken").value.trim();
+    const err = $("#ghError");
+    err.hidden = true;
+    if (!token) return;
+    // Check the token can see this repo's import job before saving it.
+    let ok = false;
+    try { ok = (await fetch(IMPORT_WORKFLOW, { headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" } })).ok; } catch (ex) { ok = false; }
+    if (!ok) {
+      err.textContent = "That token can't reach poi-planner's Actions. Check the repository access and the Actions permission.";
+      err.hidden = false;
+      return;
+    }
+    try {
+      await db.collection("config").doc("github").set({ token, updatedAt: FV().serverTimestamp() });
+      ghToken = token;
+      toast("Instant imports are on.");
+      renderImportSec();
+    } catch (ex) { console.error(ex); err.textContent = "Couldn't save the token."; err.hidden = false; }
+  });
+  $("#importSec").addEventListener("click", async (e) => {
+    if (!e.target.closest("#ghRemove")) return;
+    const ok = await askDialog({ title: "Turn off instant imports?", body: "Refresh and New trip will wait for GitHub's schedule again. You can also delete the token on GitHub.", confirm: "Turn off", danger: true });
+    if (!ok) return;
+    try { await db.collection("config").doc("github").delete(); ghToken = null; renderImportSec(); } catch (ex) { console.error(ex); toast("Couldn't turn it off."); }
+  });
 
   $("#newTripBtn").addEventListener("click", () => {
     $("#newForm").reset();
@@ -1084,7 +1163,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
       batch.set(db.collection("plans").doc(id), { title: name || NEW_TRIP, status: "pending", createdBy: email, createdAt: FV().serverTimestamp() });
       await batch.commit();
       $("#newDlg").close();
-      toast("Trip added. Its places will show up within about 10–20 minutes.");
+      toast(`Trip added. ${importNote(await startImport())}`);
     } catch (ex) {
       console.error(ex);
       err.textContent = "Couldn't add the trip. Check you're still signed in and try again.";
@@ -1993,7 +2072,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
       const p = state.plan || {};
       $("#main").innerHTML = p.status === "error"
         ? `<div class="empty-note">Couldn't import this trip from Wanderlog: ${esc(p.error || "unknown error")}. Check the Wanderlog link is shared${state.isPlanner ? ", then use Refresh now above" : ""}.</div>`
-        : `<div class="empty-note">Importing places from Wanderlog… This usually takes 10–20 minutes. The page updates by itself.</div>`;
+        : `<div class="empty-note">Importing places from Wanderlog… The page updates by itself when it's done.</div>`;
       return;
     }
     document.querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-selected", String(t.dataset.view === state.view)));
@@ -2048,6 +2127,8 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
   }
   let whoSelected = null; // planners: the name picked in the dialog, waiting for "Vote as" or "Remove"
   function renderWhoNames() {
+    const mine = myVoter();
+    $("#whoReset").hidden = !mine || (!Object.keys(mine.scores).length && !mine.top.length);
     if (whoSelected && !state.voters.some((v) => v.id === whoSelected)) whoSelected = null;
     $("#whoNames").innerHTML = orderedVoters().map((v) =>
       `<button type="button" data-voter="${esc(v.id)}" aria-current="${v.id === state.me?.id}"${state.isPlanner ? ` aria-pressed="${v.id === whoSelected}"` : ""} style="${personStyle(v)}">${pdot(v)}${esc(v.name)}</button>`).join("");
@@ -2108,6 +2189,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     } catch (err) { dbError(err); $("#whoDlg").close(); }
   });
   $("#whoLater").addEventListener("click", () => $("#whoDlg").close());
+  $("#whoResetBtn").addEventListener("click", () => resetMyVotes()); // the dialog refreshes when the votes change
   // Guests reach the sign-in screen from here; after signing in, the trip list leads back to this trip.
   $("#whoSigninBtn").addEventListener("click", () => {
     $("#whoDlg").close();
