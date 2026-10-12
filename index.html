@@ -1,0 +1,1150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Trip Ranker</title>
+<script>try { var t = localStorage.getItem("theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<script src="app-switcher.js" defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: trip title, then two columns: the main column (sticky bar with tabs + list filters, then the view)
+   and a sticky dashboard side panel with whole-trip totals (by type, group verdict, votes in).
+   Below 1100px the dashboard becomes a slide-over panel opened from the bar.
+   Three views share the same place data: "All spots" is one card per place (photo, short description,
+   your 1-5 rating, everyone's scores), "Group picks" ranks places into tiers by the group's scores,
+   "Reservations" lists what still needs booking. */
+:root {
+  --bg: #f7f3ec;
+  --surface: #fffdf9;
+  --surface-2: #f1ebe1;
+  --line: #e6ddcf;
+  --ink: #201b16;
+  --muted: #6f665b;
+  --accent: #c2410c;
+  --accent-soft: #fdebdc;
+  --rosa: #b8125a;
+  --rosa-soft: #fde4ef;
+  --ok: #1d7a46;
+  --ok-soft: #e1f3e8;
+  --warn: #8a5300;
+  --warn-soft: #fdf0d3;
+  --hot: #b42318;
+  --hot-soft: #fde6e3;
+  /* 1-5 score scale, light to deep marigold */
+  --s1: #ece4d8; --s1-fg: #5f574c;
+  --s2: #f8dfb8; --s2-fg: #5c3d00;
+  --s3: #f5bf6a; --s3-fg: #3d2800;
+  --s4: #ea8a1f; --s4-fg: #241400;
+  --s5: #c2410c; --s5-fg: #ffffff;
+  /* Group verdict, an ordered scale: rosa steps for the "go" tiers, neutrals for skip / not enough votes */
+  --v-def: #b8125a; --v-prob: #e0679a; --v-maybe: #f3b9d1; --v-skip: #b3aa9e; --v-wait: #e6ddcf;
+  --shadow: 0 1px 2px rgba(32,27,22,.05), 0 6px 20px rgba(32,27,22,.05);
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Fraunces", Georgia, serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15120e; --surface: #1f1b16; --surface-2: #2a251f; --line: #3a332b; --ink: #f4eee5; --muted: #a99f92;
+    --accent: #f59e4b; --accent-soft: #3b2616; --rosa: #ff7fb2; --rosa-soft: #3d1527;
+    --ok: #63d394; --ok-soft: #173323; --warn: #f2bb55; --warn-soft: #3a2c10; --hot: #ff8f80; --hot-soft: #3d1a16;
+    --s1: #2f2922; --s1-fg: #b3a99c; --s2: #4a3720; --s2-fg: #f3d9b0; --s3: #7a5212; --s3-fg: #ffe9c4;
+    --s4: #c46f12; --s4-fg: #1a0f00; --s5: #f08a2c; --s5-fg: #1a0f00;
+    --v-def: #ff7fb2; --v-prob: #c4467d; --v-maybe: #6b2c48; --v-skip: #6f665b; --v-wait: #3a332b;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15120e; --surface: #1f1b16; --surface-2: #2a251f; --line: #3a332b; --ink: #f4eee5; --muted: #a99f92;
+  --accent: #f59e4b; --accent-soft: #3b2616; --rosa: #ff7fb2; --rosa-soft: #3d1527;
+  --ok: #63d394; --ok-soft: #173323; --warn: #f2bb55; --warn-soft: #3a2c10; --hot: #ff8f80; --hot-soft: #3d1a16;
+  --s1: #2f2922; --s1-fg: #b3a99c; --s2: #4a3720; --s2-fg: #f3d9b0; --s3: #7a5212; --s3-fg: #ffe9c4;
+  --s4: #c46f12; --s4-fg: #1a0f00; --s5: #f08a2c; --s5-fg: #1a0f00;
+  --v-def: #ff7fb2; --v-prob: #c4467d; --v-maybe: #6b2c48; --v-skip: #6f665b; --v-wait: #3a332b;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 var(--font); }
+a { color: var(--accent); }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+[hidden] { display: none !important; }
+.shell { max-width: 1260px; margin: 0 auto; padding: 0 16px; }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 312px; gap: 0 32px; align-items: start; }
+.col-main { min-width: 0; }
+
+/* Header */
+.top { padding: 18px 0 10px; }
+.top-row { display: flex; align-items: center; gap: 10px; }
+.titles { flex: 1; min-width: 0; }
+.eyebrow { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+h1 { margin: 2px 0 2px; font: 600 clamp(24px, 5vw, 32px)/1.1 var(--font-display); letter-spacing: -.01em; }
+.sub { margin: 0; color: var(--muted); font-size: 14px; }
+.who { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 12px; font-size: 14px; white-space: nowrap; }
+.who b { font-weight: 600; }
+.who.empty { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.icon-btn { display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 8px; background: transparent; }
+.icon-btn:hover { background: var(--surface-2); }
+.icon-btn svg { width: 20px; height: 20px; }
+app-switcher { color: var(--ink); --app-switcher-hover-bg: var(--surface-2); }
+
+/* Sticky bar: tabs + filters */
+.bar { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
+.tabs-row { display: flex; align-items: center; gap: 8px; }
+.tabs { display: flex; gap: 4px; padding-top: 4px; overflow-x: auto; scrollbar-width: none; flex: 1; min-width: 0; }
+.dash-btn { display: none; align-items: center; gap: 6px; flex: none; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 5px 12px; font-size: 13.5px; font-weight: 600; }
+.dash-btn svg { width: 16px; height: 16px; }
+.chip-btn.kind-chip { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); font-weight: 600; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab { border: 0; background: none; padding: 10px 12px; border-bottom: 2px solid transparent; color: var(--muted); font-weight: 600; white-space: nowrap; }
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.tab .count { font-weight: 500; color: var(--muted); margin-left: 4px; }
+.filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 0; }
+.chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; flex: 1 1 auto; min-width: 0; }
+.chips::-webkit-scrollbar { display: none; }
+.chip-btn { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 5px 12px; font-size: 13.5px; white-space: nowrap; }
+.chip-btn[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.chip-btn .n { opacity: .65; margin-left: 4px; }
+.tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.tools select { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 5px 8px; font-size: 13.5px; }
+.toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--muted); white-space: nowrap; }
+.toggle input { width: 16px; height: 16px; accent-color: var(--accent); margin: 0; }
+
+main { padding: 16px 0 40px; }
+.banner { margin: 12px 0 0; padding: 10px 14px; border-radius: 10px; background: var(--hot-soft); color: var(--hot); font-size: 14px; }
+.intro { margin: 0 0 14px; color: var(--muted); font-size: 14px; }
+.progress { display: flex; align-items: center; gap: 12px; margin: 0 0 16px; font-size: 14px; }
+.progress .track { flex: 1; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; max-width: 260px; }
+.progress .fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width .3s ease; }
+.list-head { margin: 26px 0 10px; display: flex; align-items: baseline; gap: 8px; font: 600 20px/1.2 var(--font-display); }
+.list-head:first-child { margin-top: 0; }
+.list-head .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; align-self: center; }
+.list-head .n { font: 500 14px var(--font); color: var(--muted); }
+.empty-note { padding: 28px 16px; text-align: center; color: var(--muted); background: var(--surface); border: 1px dashed var(--line); border-radius: 14px; }
+
+/* Place card */
+.cards { display: grid; gap: 12px; }
+.spot {
+  display: grid; grid-template-columns: 96px minmax(0, 1fr); grid-template-areas: "thumb info" "thumb scores";
+  gap: 12px 16px; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow);
+  scroll-margin-top: 130px;
+}
+.spot.flash { animation: flash 1.4s ease; }
+@keyframes flash { 0%, 40% { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); } }
+.thumb { grid-area: thumb; width: 96px; height: 96px; border-radius: 10px; overflow: hidden; background: var(--surface-2); display: grid; place-items: center; color: var(--muted); font: 600 28px var(--font-display); }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.info { grid-area: info; min-width: 0; }
+.name-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.name-row h3 { margin: 0; font-size: 17px; font-weight: 700; line-height: 1.25; }
+.badges { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.meta { margin: 3px 0 0; color: var(--muted); font-size: 13.5px; }
+.blurb { margin: 6px 0 0; font-size: 14.5px; }
+.note { margin: 6px 0 0; font-size: 13.5px; padding: 6px 10px; border-left: 3px solid var(--line); color: var(--muted); }
+.sched { margin: 6px 0 0; font-size: 13.5px; color: var(--ok); font-weight: 500; }
+.links { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: 13.5px; }
+.links a { text-decoration: none; font-weight: 500; }
+.links a:hover { text-decoration: underline; }
+.scores { grid-area: scores; display: grid; gap: 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+.row-label { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.rate { display: grid; gap: 6px; }
+.rate-btns { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; max-width: 420px; }
+.rate-btn { display: grid; justify-items: center; gap: 0; padding: 6px 2px; min-height: 48px; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; transition: background-color .12s ease, transform .12s ease; }
+.rate-btn b { font-size: 17px; line-height: 1.1; }
+.rate-btn span { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.rate-btn:hover { border-color: var(--muted); }
+.rate-btn:active { transform: scale(.96); }
+.rate-btn[aria-pressed="true"] { border-color: transparent; }
+.rate-btn[aria-pressed="true"] span { color: inherit; opacity: .85; }
+.group-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.avg { display: inline-flex; align-items: baseline; gap: 4px; }
+.avg b { font-size: 20px; font-weight: 700; line-height: 1; }
+.avg small { color: var(--muted); font-size: 12.5px; }
+.people { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.person { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border-radius: 999px; font-size: 13px; background: var(--s0, var(--surface-2)); }
+.person b { display: grid; place-items: center; min-width: 22px; height: 22px; border-radius: 999px; font-size: 12.5px; background: rgba(255,255,255,.35); }
+.person.none { background: transparent; border: 1px dashed var(--line); color: var(--muted); padding: 2px 10px; }
+.person.me { box-shadow: inset 0 0 0 1.5px var(--ink); }
+.s1 { background: var(--s1); color: var(--s1-fg); } .s2 { background: var(--s2); color: var(--s2-fg); } .s3 { background: var(--s3); color: var(--s3-fg); }
+.s4 { background: var(--s4); color: var(--s4-fg); } .s5 { background: var(--s5); color: var(--s5-fg); }
+
+/* Badges */
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.res-hi { background: var(--hot-soft); color: var(--hot); }
+.res-mid { background: var(--warn-soft); color: var(--warn); }
+.res-lo { background: var(--surface-2); color: var(--muted); font-weight: 500; }
+.booked-b { background: var(--ok-soft); color: var(--ok); }
+.closed-b { background: var(--ink); color: var(--bg); }
+.tier { display: inline-flex; padding: 2px 9px; border-radius: 999px; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.t-def { background: var(--rosa); color: #fff; }
+:root[data-theme="dark"] .t-def { color: #1a0710; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .t-def { color: #1a0710; } }
+.t-prob { background: var(--rosa-soft); color: var(--rosa); }
+.t-maybe { background: var(--surface-2); color: var(--ink); }
+.t-skip { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+.t-wait { background: transparent; color: var(--muted); border: 1px dashed var(--line); }
+.split { font-size: 12.5px; color: var(--muted); }
+
+/* Group picks */
+.voted { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 6px; padding: 0; list-style: none; }
+.voted li { padding: 4px 10px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); font-size: 13px; }
+.voted li.done { border-color: var(--ok); color: var(--ok); }
+.tier-sec { margin-top: 22px; }
+.tier-head { display: flex; align-items: baseline; gap: 8px; margin: 0 0 8px; }
+.tier-head h2 { margin: 0; font: 600 20px/1.2 var(--font-display); }
+.tier-head .n { color: var(--muted); font-size: 14px; }
+.tier-head p { margin: 0 0 0 auto; color: var(--muted); font-size: 13px; text-align: right; }
+.picks { display: grid; gap: 8px; }
+.pick { display: grid; grid-template-columns: 26px 52px minmax(0, 1fr) auto; gap: 10px 12px; align-items: center; padding: 10px 14px 10px 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.rank { text-align: center; font-weight: 700; color: var(--muted); font-size: 14px; }
+.pthumb { width: 52px; height: 52px; border-radius: 8px; overflow: hidden; background: var(--surface-2); }
+.pthumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pinfo { min-width: 0; display: grid; gap: 4px; }
+.pname { border: 0; background: none; padding: 0; text-align: left; font-weight: 700; font-size: 15.5px; }
+.pname:hover { color: var(--accent); }
+.pinfo .meta { margin: 0; }
+.pscore { display: grid; justify-items: end; gap: 4px; text-align: right; }
+.pscore .avg b { font-size: 22px; }
+.pscore small { color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+
+/* Reservations */
+.book-sec { margin-top: 22px; }
+.book-sec:first-of-type { margin-top: 8px; }
+.book-sec > h2 { margin: 0 0 4px; font: 600 20px/1.2 var(--font-display); }
+.book-sec > p { margin: 0 0 10px; color: var(--muted); font-size: 13.5px; }
+.bk { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 14px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 8px; }
+.bk.is-booked { border-color: var(--ok); }
+.bk-main { min-width: 0; }
+.bk-main .name-row h3 { font-size: 16px; }
+.bk-check { display: inline-flex; align-items: center; gap: 8px; align-self: start; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.bk-check input { width: 18px; height: 18px; margin: 0; accent-color: var(--ok); }
+.bk.is-booked .bk-check { border-color: var(--ok); color: var(--ok); background: var(--ok-soft); }
+.bk-note { grid-column: 1 / -1; width: 100%; border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+.bk-by { grid-column: 1 / -1; margin: -2px 0 0; font-size: 12px; color: var(--muted); }
+details.walkins { margin-top: 22px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; }
+details.walkins summary { cursor: pointer; font-weight: 600; }
+details.walkins p { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+
+/* Dashboard side panel */
+.side { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; margin-top: 4px; padding: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); scrollbar-width: thin; }
+.side-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.side-head h2 { margin: 0; font: 600 20px/1.2 var(--font-display); }
+.side-close { display: none; }
+.side-sub { margin: 2px 0 14px; color: var(--muted); font-size: 13px; }
+.kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.kpi { padding: 10px 12px; background: var(--bg); border-radius: 10px; display: grid; gap: 2px; align-content: start; }
+.kpi-l { font-size: 12.5px; color: var(--muted); }
+.kpi b { font-size: 26px; font-weight: 600; line-height: 1.1; }
+.kpi small { font-size: 12px; color: var(--muted); }
+.side-sec { margin-top: 20px; }
+.side-sec h3 { margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.side-note { margin: 6px 0 0; font-size: 12.5px; color: var(--muted); }
+.kinds { width: 100%; border-collapse: collapse; font-size: 14px; }
+.kinds th, .kinds td { padding: 7px 4px; text-align: left; border-bottom: 1px solid var(--line); }
+.kinds thead th { font-size: 12px; font-weight: 600; color: var(--muted); padding-top: 0; }
+.kinds .num { text-align: right; font-variant-numeric: tabular-nums; width: 46px; }
+.kinds tbody th { font-weight: 500; }
+.kinds tfoot th, .kinds tfoot td { border-bottom: 0; font-weight: 700; }
+.kinds .zero { color: var(--muted); }
+.kind-btn { display: block; width: 100%; border: 0; background: none; padding: 0; text-align: left; font-weight: 600; }
+.kind-btn:hover { color: var(--accent); }
+.kinds tr[aria-selected="true"] { background: var(--accent-soft); }
+.kinds tr[aria-selected="true"] .kind-btn { color: var(--accent); }
+.kbar { display: block; height: 4px; margin-top: 5px; }
+.kbar span { display: block; height: 100%; background: var(--accent); border-radius: 0 2px 2px 0; min-width: 2px; }
+.stack { display: flex; gap: 2px; height: 12px; background: var(--surface); }
+.stack span { display: block; height: 100%; min-width: 3px; }
+.stack span:last-child { border-radius: 0 4px 4px 0; }
+.legend { display: grid; gap: 4px; margin: 10px 0 0; padding: 0; list-style: none; font-size: 13.5px; }
+.legend li { display: flex; align-items: center; gap: 8px; }
+.legend .sw { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.legend b { margin-left: auto; font-variant-numeric: tabular-nums; }
+.sw-def { background: var(--v-def); } .sw-prob { background: var(--v-prob); } .sw-maybe { background: var(--v-maybe); }
+.sw-skip { background: var(--v-skip); } .sw-wait { background: var(--v-wait); }
+.meters { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; font-size: 13.5px; }
+.meters li { display: grid; grid-template-columns: minmax(0, 88px) minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+.meters .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meter { height: 6px; border-radius: 3px; background: var(--accent-soft); overflow: hidden; }
+.meter span { display: block; height: 100%; background: var(--accent); border-radius: 0 3px 3px 0; }
+.meters b { font-weight: 600; font-variant-numeric: tabular-nums; font-size: 12.5px; }
+.scrim { position: fixed; inset: 0; z-index: 19; background: rgba(20,16,12,.45); }
+
+@media (max-width: 1099px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .dash-btn { display: inline-flex; }
+  .side { position: fixed; top: 0; right: 0; bottom: 0; z-index: 20; width: min(360px, 92vw); max-height: none; margin: 0; border-radius: 16px 0 0 16px; border-right: 0; transform: translateX(105%); transition: transform .22s ease; visibility: hidden; }
+  .side.open { transform: none; visibility: visible; }
+  .side-close { display: grid; }
+}
+@media (min-width: 1100px) { .scrim { display: none; } }
+
+footer { padding: 8px 0 40px; color: var(--muted); font-size: 13px; }
+footer a { color: inherit; }
+
+/* Gate (no board yet / errors) and the name dialog */
+.gate { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
+.gate-card { width: 100%; max-width: 440px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 24px; box-shadow: var(--shadow); }
+.gate-card h1 { font-size: 26px; }
+.gate-card p { color: var(--muted); }
+.gate-form { display: flex; gap: 8px; margin-top: 12px; }
+.gate-form input, .dlg input { flex: 1; min-width: 0; border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 10px 12px; }
+.btn { border: 0; border-radius: 10px; padding: 10px 16px; background: var(--ink); color: var(--bg); font-weight: 600; white-space: nowrap; }
+.btn.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+.board-links { display: grid; gap: 6px; margin: 16px 0 0; padding: 0; list-style: none; }
+.board-links a { display: block; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; text-decoration: none; color: var(--ink); font-weight: 600; }
+dialog.dlg { width: min(420px, calc(100vw - 32px)); border: 1px solid var(--line); border-radius: 16px; padding: 22px; background: var(--surface); color: var(--ink); box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
+.dlg h2 { margin: 0 0 4px; font: 600 22px/1.2 var(--font-display); }
+.dlg p { margin: 0 0 14px; color: var(--muted); font-size: 14px; }
+.names { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.names button { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 8px 14px; font-weight: 600; }
+.names button:hover { border-color: var(--accent); color: var(--accent); }
+.dlg form { display: flex; gap: 8px; }
+.dlg .later { margin-top: 12px; border: 0; background: none; color: var(--muted); font-size: 13.5px; padding: 4px 0; text-decoration: underline; }
+
+@media (max-width: 600px) {
+  .spot { grid-template-columns: 64px minmax(0, 1fr); grid-template-areas: "thumb info" "scores scores"; padding: 14px; gap: 10px 12px; }
+  .thumb { width: 64px; height: 64px; font-size: 22px; }
+  .rate-btns { max-width: none; }
+  .who span.lbl { display: none; }
+  .tab { padding: 10px 8px; }
+  .dash-btn { padding: 7px 9px; }
+  .dash-btn .lbl { display: none; }
+  .pick { grid-template-columns: 22px 44px minmax(0, 1fr); padding: 10px; }
+  .pthumb { width: 44px; height: 44px; }
+  .pscore { grid-column: 3; justify-items: start; text-align: left; grid-auto-flow: column; justify-content: start; align-items: center; gap: 8px; }
+  .tier-head { flex-wrap: wrap; }
+  .tier-head p { margin: 0; width: 100%; text-align: left; }
+  .bk { grid-template-columns: minmax(0, 1fr); }
+  .bk-check { justify-self: start; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+
+<div id="gate" class="gate">
+  <div class="gate-card" id="gateCard"><p>Opening your board…</p></div>
+</div>
+
+<div id="app" hidden>
+  <header class="shell top">
+    <div class="top-row">
+      <app-switcher></app-switcher>
+      <div class="titles">
+        <p class="eyebrow">Trip Ranker</p>
+        <h1 id="tripTitle"></h1>
+        <p class="sub" id="tripSub"></p>
+      </div>
+      <button class="who" id="whoBtn" type="button"></button>
+      <button class="icon-btn" id="themeBtn" type="button" title="Switch light / dark" aria-label="Switch light or dark theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 4v16" /><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="shell layout">
+    <div class="col-main">
+      <div class="bar">
+        <div class="tabs-row">
+          <nav class="tabs" role="tablist" aria-label="Views">
+            <button class="tab" role="tab" data-view="spots" type="button">All spots</button>
+            <button class="tab" role="tab" data-view="picks" type="button">Group picks</button>
+            <button class="tab" role="tab" data-view="book" type="button">Reservations</button>
+          </nav>
+          <button class="dash-btn" id="dashBtn" type="button" aria-controls="side" aria-expanded="false" aria-label="Dashboard" title="Dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>
+            <span class="lbl">Dashboard</span>
+          </button>
+        </div>
+        <div class="filters">
+          <div class="chips" id="listChips" role="group" aria-label="Filters"></div>
+          <div class="tools" id="spotTools">
+            <select id="sortSel" aria-label="Sort">
+              <option value="list">Wanderlog order</option>
+              <option value="group">Group favorites</option>
+              <option value="need">Reservation need</option>
+            </select>
+            <label class="toggle"><input type="checkbox" id="unratedOnly"> Not rated by me</label>
+          </div>
+        </div>
+      </div>
+      <div class="banner" id="banner" role="status" hidden></div>
+      <main id="main"></main>
+      <footer id="foot"></footer>
+    </div>
+    <aside class="side" id="side" aria-label="Trip dashboard"></aside>
+  </div>
+  <div class="scrim" id="scrim" hidden></div>
+</div>
+
+<dialog class="dlg" id="whoDlg" aria-labelledby="whoTitle">
+  <h2 id="whoTitle">Who's voting?</h2>
+  <p id="whoHint">Pick your name. Your scores are saved under it, so you can open this link on any device and pick up where you left off.</p>
+  <div class="names" id="whoNames"></div>
+  <form id="whoForm">
+    <input id="whoInput" maxlength="30" placeholder="New here? Type your name" autocomplete="given-name" aria-label="Your name">
+    <button class="btn" type="submit">Join</button>
+  </form>
+  <button class="later" id="whoLater" type="button">Just looking for now</button>
+</dialog>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script>
+(() => {
+  // Same Firebase project as the Travel Tracker; votes live under rankBoards/{boardId}.
+  const firebaseConfig = {
+    apiKey: "AIzaSyCMqAv_2kaKFoM_MbVY1O_8AGGZm-DC5qw",
+    authDomain: "jon-steph-wedding.firebaseapp.com",
+    projectId: "jon-steph-wedding",
+    storageBucket: "jon-steph-wedding.firebasestorage.app",
+    messagingSenderId: "1010364448757",
+    appId: "1:1010364448757:web:c21d9bed632b8f21d62abc"
+  };
+  const SYNC_URL = "https://github.com/jonchao/trip-ranker/actions/workflows/sync.yml";
+  const SCORE_WORDS = ["", "Skip it", "Meh", "Sure", "Want to", "Must go"];
+  const TIERS = {
+    def:   { name: "Definitely go", cls: "t-def",   hint: "Average 4 or more and nobody below 3" },
+    prob:  { name: "Probably",      cls: "t-prob",  hint: "Average 3.25 or more" },
+    maybe: { name: "Maybe",         cls: "t-maybe", hint: "Average 2.5 or more" },
+    skip:  { name: "Skip",          cls: "t-skip",  hint: "Average below 2.5" },
+    wait:  { name: "Needs votes",   cls: "t-wait",  hint: "Fewer than half the group has rated it" },
+  };
+  const TIER_ORDER = ["def", "prob", "maybe", "skip", "wait"];
+  // Place types for the dashboard (set by the sync script from Wanderlog's categories).
+  const KINDS = {
+    restaurant: "Restaurants", cafe: "Cafés & bakeries", bar: "Bars", sight: "Museums & sights",
+    area: "Neighborhoods", market: "Markets & shopping", activity: "Activities & events", other: "Other",
+  };
+  const LS_BOARDS = "tripRanker.boards";
+
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+
+  const state = {
+    slug: null, secret: null, boardId: null, board: null, months: [],
+    voters: [], spots: {}, me: null,
+    view: "spots", list: "all", kind: null, sort: "list", unratedOnly: false,
+    pendingRender: false,
+  };
+  let votersRef = null, spotsRef = null;
+
+  /* ---------- Board link, decryption ---------- */
+
+  const enc = new TextEncoder();
+  const fromB64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  async function sha256hex(text) {
+    const buf = await crypto.subtle.digest("SHA-256", enc.encode(text));
+    return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  // Must match scripts/sync-wanderlog.mjs.
+  async function decryptBoard(file, slug, secret) {
+    const base = await crypto.subtle.importKey("raw", enc.encode(secret), "PBKDF2", false, ["deriveKey"]);
+    const key = await crypto.subtle.deriveKey(
+      { name: "PBKDF2", salt: enc.encode(`trip-ranker:${slug}`), iterations: 150000, hash: "SHA-256" },
+      base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+    const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: fromB64(file.iv) }, key, fromB64(file.data));
+    return JSON.parse(new TextDecoder().decode(plain));
+  }
+
+  function parseHash(hash) {
+    const m = String(hash || "").replace(/^.*#/, "").match(/^([a-z0-9-]{2,40})[:/]([A-Za-z0-9_-]{16,})$/);
+    return m ? { slug: m[1], secret: m[2] } : null;
+  }
+  function savedBoards() {
+    try { return JSON.parse(lsGet(LS_BOARDS) || "[]").filter((b) => b && b.slug && b.secret); } catch (e) { return []; }
+  }
+  function rememberBoard(slug, secret, title) {
+    const list = savedBoards().filter((b) => b.slug !== slug);
+    list.unshift({ slug, secret, title });
+    lsSet(LS_BOARDS, JSON.stringify(list.slice(0, 10)));
+  }
+
+  function showGate(html) {
+    $("#app").hidden = true;
+    $("#gate").hidden = false;
+    $("#gateCard").innerHTML = html;
+  }
+  function showNoBoard(message) {
+    const boards = savedBoards();
+    showGate(`
+      <p class="eyebrow">Trip Ranker</p>
+      <h1>Open your trip board</h1>
+      <p>${esc(message || "Each trip has its own private link. Paste the one your group shared.")}</p>
+      <form class="gate-form" id="gateForm">
+        <input id="gateInput" placeholder="Paste the board link" aria-label="Board link" autocomplete="off">
+        <button class="btn" type="submit">Open</button>
+      </form>
+      ${boards.length ? `<ul class="board-links">${boards.map((b) => `<li><a href="#${esc(b.slug)}:${esc(b.secret)}">${esc(b.title || b.slug)}</a></li>`).join("")}</ul>` : ""}`);
+    $("#gateForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const parsed = parseHash($("#gateInput").value.trim());
+      if (parsed) location.hash = `${parsed.slug}:${parsed.secret}`;
+      else showNoBoard("That doesn't look like a board link. It should end with #name:code.");
+    });
+  }
+
+  async function openBoard() {
+    const parsed = parseHash(location.hash) || (location.hash ? null : savedBoards()[0]);
+    if (!parsed) return showNoBoard(location.hash ? "That link looks incomplete. Check you copied all of it." : "");
+    if (!window.crypto?.subtle) return showNoBoard("This browser can't open private boards. Try a current version of Safari, Chrome or Firefox.");
+    showGate(`<p>Opening your board…</p>`);
+    let board;
+    try {
+      const res = await fetch(`data/${parsed.slug}.json`, { cache: "no-cache" });
+      if (!res.ok) throw new Error("missing");
+      board = await decryptBoard(await res.json(), parsed.slug, parsed.secret);
+    } catch (e) {
+      return showNoBoard("Couldn't open that board. The link may be incomplete or out of date.");
+    }
+    if (location.hash !== `#${parsed.slug}:${parsed.secret}`) history.replaceState(null, "", `#${parsed.slug}:${parsed.secret}`);
+    Object.assign(state, { slug: parsed.slug, secret: parsed.secret, board, voters: [], spots: {} });
+    state.boardId = `${parsed.slug}-${(await sha256hex(`board:${parsed.slug}:${parsed.secret}`)).slice(0, 32)}`;
+    state.months = tripMonths(board);
+    try { state.me = JSON.parse(lsGet(`tripRanker.me.${state.boardId}`) || "null"); } catch (e) { state.me = null; }
+    rememberBoard(parsed.slug, parsed.secret, board.title);
+    document.title = `${board.title} · Trip Ranker`;
+    $("#gate").hidden = true;
+    $("#app").hidden = false;
+    renderHeader();
+    render();
+    connect();
+  }
+
+  /* ---------- Firestore ---------- */
+
+  let unsub = [];
+  async function connect() {
+    unsub.forEach((u) => u());
+    unsub = [];
+    try {
+      if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+      await firebase.auth().signInAnonymously();
+    } catch (e) {
+      return showBanner("Couldn't connect to the votes database. Check your connection and reload.");
+    }
+    const boardRef = firebase.firestore().collection("rankBoards").doc(state.boardId);
+    votersRef = boardRef.collection("voters");
+    spotsRef = boardRef.collection("spots");
+    let askedName = false;
+    unsub.push(votersRef.onSnapshot((snap) => {
+      state.voters = snap.docs.map((d) => ({ id: d.id, name: d.data().name || d.id, scores: cleanScores(d.data().scores) }));
+      showBanner("");
+      renderHeader();
+      scheduleRender();
+      if (!askedName && !state.me) { askedName = true; openWho(); }
+    }, dbError));
+    unsub.push(spotsRef.onSnapshot((snap) => {
+      state.spots = Object.fromEntries(snap.docs.map((d) => [d.id, d.data()]));
+      scheduleRender();
+    }, dbError));
+  }
+  function dbError(err) {
+    console.error(err);
+    showBanner(err && err.code === "permission-denied"
+      ? "Voting isn't switched on yet: the Firestore rules for Trip Ranker haven't been published. Places still show below."
+      : "Lost the connection to the votes database. Reload to try again.");
+  }
+  function showBanner(text) {
+    const b = $("#banner");
+    b.textContent = text;
+    b.hidden = !text;
+  }
+  function cleanScores(raw) {
+    const out = {};
+    for (const [k, v] of Object.entries(raw || {})) if (Number.isInteger(v) && v >= 1 && v <= 5) out[k] = v;
+    return out;
+  }
+
+  const myVoter = () => state.voters.find((v) => v.id === state.me?.id);
+  const myScore = (id) => myVoter()?.scores[id] || 0;
+
+  async function setScore(placeId, value) {
+    if (!state.me) return openWho("Pick your name first, then tap a score.");
+    const FV = firebase.firestore.FieldValue;
+    const clear = myScore(placeId) === value; // tapping your current score clears it
+    try {
+      await votersRef.doc(state.me.id).set({
+        name: myVoter()?.name || state.me.name,
+        scores: { [placeId]: clear ? FV.delete() : value },
+        updatedAt: FV.serverTimestamp(),
+      }, { merge: true });
+    } catch (e) { dbError(e); }
+  }
+
+  async function saveSpot(placeId, fields) {
+    const FV = firebase.firestore.FieldValue;
+    try {
+      await spotsRef.doc(placeId).set({ ...fields, by: myVoter()?.name || state.me?.name || "Someone", updatedAt: FV.serverTimestamp() }, { merge: true });
+    } catch (e) { dbError(e); }
+  }
+
+  /* ---------- Derived data ---------- */
+
+  const places = () => state.board.places;
+  const inList = (p) => (state.list === "all" || p.lists.includes(state.list)) && (!state.kind || (p.kind || "other") === state.kind);
+  const orderedVoters = () => {
+    const me = state.me?.id;
+    return [...state.voters].sort((a, b) => (a.id === me ? -1 : b.id === me ? 1 : a.name.localeCompare(b.name)));
+  };
+
+  function stats(p) {
+    const n = state.voters.length;
+    const votes = state.voters.map((v) => v.scores[p.id]).filter(Boolean);
+    const count = votes.length;
+    const avg = count ? votes.reduce((a, b) => a + b, 0) / count : 0;
+    const min = count ? Math.min(...votes) : 0, max = count ? Math.max(...votes) : 0;
+    const fives = votes.filter((v) => v === 5).length;
+    let tier = "wait";
+    if (count && count >= Math.max(1, Math.ceil(n / 2))) {
+      tier = avg >= 4 && min >= 3 ? "def" : avg >= 3.25 ? "prob" : avg >= 2.5 ? "maybe" : "skip";
+    }
+    return { n, count, avg, min, max, fives, tier, split: count >= 2 && max - min >= 3 };
+  }
+  const byGroup = (a, b) => {
+    const sa = stats(a), sb = stats(b);
+    return TIER_ORDER.indexOf(sa.tier) - TIER_ORDER.indexOf(sb.tier) || sb.avg - sa.avg || sb.fives - sa.fives || sb.count - sa.count || a.name.localeCompare(b.name);
+  };
+
+  // Months the trip covers (0-11). Without dates, every month counts.
+  function tripMonths(board) {
+    if (!board.startDate || !board.endDate) return [...Array(12).keys()];
+    const out = [];
+    const d = new Date(board.startDate + "T12:00:00"), end = new Date(board.endDate + "T12:00:00");
+    d.setDate(1);
+    while (d <= end && out.length < 12) { out.push(d.getMonth()); d.setMonth(d.getMonth() + 1); }
+    return out;
+  }
+  // Wanderlog's 1-5 "booking needed" estimate, worst case across the trip's months.
+  function need(p) {
+    if (!p.booking) return null;
+    let wd = 0, we = 0;
+    for (const m of state.months) { wd = Math.max(wd, p.booking[m]?.[0] || 0); we = Math.max(we, p.booking[m]?.[1] || 0); }
+    if (!wd && !we) return null;
+    const level = Math.max(wd, we);
+    let label = level >= 5 ? "Book well ahead" : level === 4 ? "Reserve ahead" : level === 3 ? "Reservation recommended" : level === 2 ? "Walk-in usually fine" : "No reservation needed";
+    if (we >= 3 && wd <= 2) label = "Book for weekends";
+    return { level, wd, we, label, cls: level >= 4 ? "res-hi" : level === 3 ? "res-mid" : "res-lo" };
+  }
+  const wanderlogBooked = (p) => p.notes.some((n) => /^reservation/i.test(n));
+  const isBooked = (p) => (state.spots[p.id] && typeof state.spots[p.id].booked === "boolean" ? state.spots[p.id].booked : wanderlogBooked(p));
+  // Needs a reservation (Wanderlog level 3+) and nobody has booked it yet.
+  const toBook = (p) => !isBooked(p) && !p.closed && (need(p)?.level || 0) >= 3;
+
+  /* ---------- Formatting ---------- */
+
+  const day = (s) => new Date(s + "T12:00:00");
+  const fmtDay = (s, o) => day(s).toLocaleDateString("en-US", o);
+  function fmtRange(a, b) {
+    if (!a) return "";
+    if (!b || a === b) return fmtDay(a, { month: "short", day: "numeric", year: "numeric" });
+    const sameYear = a.slice(0, 4) === b.slice(0, 4);
+    return `${fmtDay(a, { month: "short", day: "numeric", ...(sameYear ? {} : { year: "numeric" }) })} – ${fmtDay(b, { month: "short", day: "numeric", year: "numeric" })}`;
+  }
+  function fmtTime(t) {
+    const [h, m] = t.split(":").map(Number);
+    return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+  }
+  const fmtCount = (n) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(n));
+  function ago(iso) {
+    if (!iso) return "";
+    const secs = (new Date(iso) - Date.now()) / 1000;
+    const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+    for (const [unit, size] of [["day", 86400], ["hour", 3600], ["minute", 60]]) if (Math.abs(secs) >= size) return rtf.format(Math.round(secs / size), unit);
+    return "just now";
+  }
+  function daysToGo() {
+    if (!state.board.startDate) return "";
+    const today = new Date(); today.setHours(12, 0, 0, 0);
+    const d = Math.round((day(state.board.startDate) - today) / 864e5);
+    const end = state.board.endDate ? Math.round((day(state.board.endDate) - today) / 864e5) : d;
+    if (d > 1) return `${d} days to go`;
+    if (d === 1) return "Tomorrow!";
+    if (end >= 0) return "Happening now";
+    return "";
+  }
+  const mapsUrl = (p) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name + (p.address ? ", " + p.address : ""))}&query_place_id=${encodeURIComponent(p.id)}`;
+  const listColor = (name) => state.board.lists.find((l) => l.name === name)?.color || "var(--muted)";
+
+  /* ---------- Shared pieces ---------- */
+
+  function peopleHTML(p) {
+    if (!state.voters.length) return `<span class="split">No one has joined yet</span>`;
+    return `<ul class="people">${orderedVoters().map((v) => {
+      const s = v.scores[p.id];
+      const me = v.id === state.me?.id ? " me" : "";
+      return s
+        ? `<li class="person s${s}${me}" title="${esc(v.name)}: ${s} – ${SCORE_WORDS[s]}"><span>${esc(v.name)}</span><b>${s}</b></li>`
+        : `<li class="person none${me}" title="${esc(v.name)} hasn't rated this yet">${esc(v.name)} –</li>`;
+    }).join("")}</ul>`;
+  }
+  function tierHTML(s) {
+    const t = TIERS[s.tier];
+    return `<span class="tier ${t.cls}" title="${esc(t.hint)}">${t.name}</span>`;
+  }
+  function badgesHTML(p) {
+    const out = [];
+    if (p.closed) out.push(`<span class="badge closed-b">Closed</span>`);
+    if (isBooked(p)) out.push(`<span class="badge booked-b">✓ Booked</span>`);
+    else {
+      const n = need(p);
+      if (n) out.push(`<span class="badge ${n.cls}" title="Wanderlog's estimate for your travel months: weekdays ${n.wd}/5, weekends ${n.we}/5">${n.label}</span>`);
+    }
+    return out.join("");
+  }
+  function scheduledHTML(p) {
+    if (!p.scheduled.length) return "";
+    const when = p.scheduled.map((s) => fmtDay(s.date, { weekday: "short", month: "short", day: "numeric" }) + (s.time ? ` · ${fmtTime(s.time)}` : "")).join(", ");
+    return `<p class="sched">On the itinerary: ${esc(when)}</p>`;
+  }
+  function thumbHTML(p, cls) {
+    const initial = esc((p.name || "?").trim().charAt(0));
+    return `<div class="${cls}">${p.image ? `<img src="${esc(p.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ""}${cls === "thumb" ? `<span aria-hidden="true">${p.image ? "" : initial}</span>` : ""}</div>`;
+  }
+  function metaHTML(p, withList) {
+    const bits = [];
+    if (p.category) bits.push(esc(p.category));
+    if (p.rating) bits.push(`★ ${p.rating.toFixed(1)}${p.ratings ? ` (${fmtCount(p.ratings)})` : ""}`);
+    if (p.price) bits.push("$".repeat(p.price));
+    if (withList) bits.push(esc(p.lists.join(", ")));
+    return `<p class="meta">${bits.join(" · ")}</p>`;
+  }
+
+  /* ---------- View: all spots ---------- */
+
+  function scoresHTML(p) {
+    const mine = myScore(p.id);
+    const s = stats(p);
+    const btns = [1, 2, 3, 4, 5].map((v) =>
+      `<button type="button" class="rate-btn${mine === v ? ` s${v}` : ""}" data-rate="${v}" aria-pressed="${mine === v}" aria-label="${v} – ${SCORE_WORDS[v]}"><b>${v}</b><span>${SCORE_WORDS[v]}</span></button>`).join("");
+    return `
+      <div class="rate">
+        <span class="row-label">${state.me ? "Your rating" : "Rate it (pick your name first)"}</span>
+        <div class="rate-btns" role="group" aria-label="Your rating for ${esc(p.name)}">${btns}</div>
+      </div>
+      <div class="group-row">
+        <span class="row-label">Group</span>
+        ${s.count ? `<span class="avg"><b>${s.avg.toFixed(1)}</b><small>avg</small></span>` : ""}
+        ${tierHTML(s)}
+        ${s.split ? `<span class="split">Split vote</span>` : ""}
+      </div>
+      ${peopleHTML(p)}`;
+  }
+
+  function cardHTML(p) {
+    const blurb = p.blurb || (p.notes.length ? "" : p.category ? `${p.category}.` : "");
+    return `
+      <article class="spot" id="spot-${esc(p.id)}" data-id="${esc(p.id)}">
+        ${thumbHTML(p, "thumb")}
+        <div class="info">
+          <div class="name-row"><h3>${esc(p.name)}</h3><span class="badges">${badgesHTML(p)}</span></div>
+          ${metaHTML(p, state.list === "all" && state.sort !== "list")}
+          ${blurb ? `<p class="blurb">${esc(blurb)}</p>` : ""}
+          ${p.notes.filter((n) => !/^reservation/i.test(n)).map((n) => `<p class="note">${esc(n)}</p>`).join("")}
+          ${scheduledHTML(p)}
+          <div class="links">
+            <a href="${esc(mapsUrl(p))}" target="_blank" rel="noopener">Map ↗</a>
+            ${p.website ? `<a href="${esc(p.website)}" target="_blank" rel="noopener">Website ↗</a>` : ""}
+          </div>
+        </div>
+        <div class="scores">${scoresHTML(p)}</div>
+      </article>`;
+  }
+
+  function renderSpots() {
+    const all = places();
+    const rated = all.filter((p) => myScore(p.id)).length;
+    let shown = all.filter(inList);
+    if (state.unratedOnly) shown = shown.filter((p) => !myScore(p.id));
+    const progress = state.me
+      ? `<div class="progress" id="progress"><span>You've rated <b>${rated}</b> of ${all.length}</span><div class="track"><div class="fill" style="width:${(rated / all.length) * 100}%"></div></div></div>`
+      : `<p class="intro">Tap <b>${state.voters.length ? "your name" : "Join"}</b> at the top to start rating. Scores: 1 skip it · 2 meh · 3 sure · 4 want to · 5 must go.</p>`;
+
+    if (!shown.length) {
+      return progress + `<div class="empty-note">${state.unratedOnly ? "You've rated everything here. Nice." : "Nothing in this list yet."}</div>`;
+    }
+    if (state.sort === "list") {
+      const lists = state.list === "all" ? state.board.lists.map((l) => l.name) : [state.list];
+      return progress + lists.map((name) => {
+        const items = shown.filter((p) => p.lists[0] === name || (state.list !== "all" && p.lists.includes(name)));
+        if (!items.length) return "";
+        return `<h2 class="list-head"><span class="dot" style="background:${esc(listColor(name))}"></span>${esc(name)} <span class="n">${items.length}</span></h2>
+          <div class="cards">${items.map(cardHTML).join("")}</div>`;
+      }).join("");
+    }
+    const sorted = [...shown].sort(state.sort === "group" ? byGroup : (a, b) => {
+      const na = need(a)?.level || 0, nb = need(b)?.level || 0;
+      return nb - na || byGroup(a, b);
+    });
+    return progress + `<div class="cards">${sorted.map(cardHTML).join("")}</div>`;
+  }
+
+  // On vote updates, refresh each card's scores in place so the list doesn't jump while you rate.
+  function refreshSpots() {
+    const byId = new Map(places().map((p) => [p.id, p]));
+    document.querySelectorAll("#main .spot").forEach((card) => {
+      const p = byId.get(card.dataset.id);
+      if (!p) return;
+      $(".scores", card).innerHTML = scoresHTML(p);
+      $(".badges", card).innerHTML = badgesHTML(p);
+    });
+    const prog = $("#progress");
+    if (prog) {
+      const rated = places().filter((p) => myScore(p.id)).length;
+      $("span", prog).innerHTML = `You've rated <b>${rated}</b> of ${places().length}`;
+      $(".fill", prog).style.width = `${(rated / places().length) * 100}%`;
+    } else if (state.me) {
+      render();
+    }
+  }
+
+  /* ---------- View: group picks ---------- */
+
+  function votedHTML() {
+    const total = places().length;
+    if (!state.voters.length) return "";
+    return `<ul class="voted">${orderedVoters().map((v) => {
+      const n = places().filter((p) => v.scores[p.id]).length;
+      return `<li class="${n === total ? "done" : ""}">${esc(v.name)} · ${n === total ? "✓ all rated" : `${n}/${total}`}</li>`;
+    }).join("")}</ul>`;
+  }
+
+  function renderPicks() {
+    const shown = places().filter(inList).sort(byGroup);
+    if (!state.voters.length) return `<div class="empty-note">No votes yet. Once people rate spots, they're ranked here.</div>`;
+    let rank = 0;
+    const sections = TIER_ORDER.map((key) => {
+      const items = shown.filter((p) => stats(p).tier === key);
+      if (!items.length) return "";
+      return `<section class="tier-sec">
+        <div class="tier-head"><h2>${TIERS[key].name}</h2><span class="n">${items.length}</span><p>${esc(TIERS[key].hint)}</p></div>
+        <div class="picks">${items.map((p) => {
+          const s = stats(p);
+          rank++;
+          return `<div class="pick">
+            <span class="rank">${key === "wait" ? "" : rank}</span>
+            ${thumbHTML(p, "pthumb")}
+            <div class="pinfo">
+              <button class="pname" type="button" data-goto="${esc(p.id)}">${esc(p.name)}</button>
+              ${metaHTML(p, state.list === "all")}
+              ${peopleHTML(p)}
+            </div>
+            <div class="pscore">
+              ${s.count ? `<span class="avg"><b>${s.avg.toFixed(1)}</b></span>` : ""}
+              <small>${s.count} of ${s.n} voted${s.split ? " · split" : ""}</small>
+              <span class="badges">${badgesHTML(p)}</span>
+            </div>
+          </div>`;
+        }).join("")}</div>
+      </section>`;
+    }).join("");
+    return `<p class="intro">Ranked by everyone's 1–5 scores. Ties go to the spot with more 5s.</p>${votedHTML()}${sections}`;
+  }
+
+  /* ---------- View: reservations ---------- */
+
+  function bookRowHTML(p) {
+    const n = need(p), s = stats(p), booked = isBooked(p), info = state.spots[p.id] || {};
+    const details = [];
+    if (n) details.push(`Weekdays ${n.wd}/5 · Weekends ${n.we}/5`);
+    details.push(s.count ? `Group ${s.avg.toFixed(1)} · ${TIERS[s.tier].name}` : "No votes yet");
+    const links = [`<a href="${esc(mapsUrl(p))}" target="_blank" rel="noopener">Map ↗</a>`];
+    if (p.website) links.unshift(`<a href="${esc(p.website)}" target="_blank" rel="noopener">Website / book ↗</a>`);
+    if (p.phone) links.push(`<a href="tel:${esc(p.phone.replace(/[^+\d]/g, ""))}">Call ${esc(p.phone)}</a>`);
+    return `<div class="bk${booked ? " is-booked" : ""}" data-id="${esc(p.id)}">
+      <div class="bk-main">
+        <div class="name-row"><h3>${esc(p.name)}</h3>${n && !booked ? `<span class="badge ${n.cls}">${n.label}</span>` : ""}</div>
+        <p class="meta">${esc(p.lists.join(", "))} · ${details.join(" · ")}</p>
+        ${scheduledHTML(p)}
+        <div class="links">${links.join("")}</div>
+      </div>
+      <label class="bk-check"><input type="checkbox" data-booked ${booked ? "checked" : ""}> ${booked ? "Booked" : "Mark booked"}</label>
+      <input class="bk-note" data-note maxlength="200" value="${esc(info.note || "")}" placeholder="Booking details, e.g. Sat 8:30 PM · 4 people · OpenTable" aria-label="Booking details for ${esc(p.name)}">
+      ${info.by && info.updatedAt ? `<p class="bk-by">Updated by ${esc(info.by)}</p>` : ""}
+    </div>`;
+  }
+
+  function renderBook() {
+    const shown = places().filter(inList);
+    const needs = (p) => (need(p)?.level || 0) >= 3;
+    const wanted = (p) => ["def", "prob"].includes(stats(p).tier);
+    const order = (a, b) => (need(b)?.level || 0) - (need(a)?.level || 0) || byGroup(a, b);
+    const booked = shown.filter(isBooked).sort(byGroup);
+    const open = shown.filter(toBook);
+    const first = open.filter(wanted).sort(order);
+    const undecided = open.filter((p) => stats(p).tier === "wait").sort(order);
+    const later = open.filter((p) => !wanted(p) && stats(p).tier !== "wait").sort(order);
+    const walkins = shown.filter((p) => !isBooked(p) && !needs(p)).sort((a, b) => a.name.localeCompare(b.name));
+    const sec = (title, note, items) => (items.length ? `<section class="book-sec"><h2>${title} <span class="n" style="font:500 14px var(--font);color:var(--muted)">${items.length}</span></h2><p>${note}</p>${items.map(bookRowHTML).join("")}</section>` : "");
+    const togo = daysToGo();
+    return `<p class="intro">${togo ? `<b>${esc(togo)}.</b> ` : ""}Booking levels are Wanderlog's estimates for ${esc(state.months.map((m) => new Date(2000, m, 1).toLocaleDateString("en-US", { month: "long" })).join(" and "))}. Mark spots booked and add details so everyone can see them.</p>
+      ${sec("Book these first", "The group wants to go, and Wanderlog says to reserve.", first)}
+      ${sec("Waiting on votes", "These need a reservation, but not enough people have rated them yet.", undecided)}
+      ${sec("Booked", "Marked as booked by the group, or a reservation is on the Wanderlog itinerary.", booked)}
+      ${sec("Lower priority", "These need a reservation, but the group is lukewarm.", later)}
+      ${walkins.length ? `<details class="walkins"><summary>Walk-in spots · ${walkins.length}</summary><p>${walkins.map((p) => esc(p.name)).join(" · ")}</p></details>` : ""}
+      ${!first.length && !undecided.length && !booked.length && !later.length ? `<div class="empty-note">Nothing here needs a reservation.</div>` : ""}`;
+  }
+
+  /* ---------- Dashboard side panel (whole-trip totals; ignores the filters) ---------- */
+
+  function renderSide() {
+    const all = places();
+    const st = new Map(all.map((p) => [p.id, stats(p)]));
+    const isGo = (p) => st.get(p.id).tier === "def";
+    const goCount = all.filter(isGo).length;
+    const bookCount = all.filter(toBook).length;
+    const wantedToBook = all.filter((p) => toBook(p) && ["def", "prob"].includes(st.get(p.id).tier)).length;
+    const bookedCount = all.filter(isBooked).length;
+
+    const kinds = Object.keys(KINDS)
+      .map((k) => {
+        const items = all.filter((p) => (p.kind || "other") === k);
+        return { k, n: items.length, go: items.filter(isGo).length, book: items.filter(toBook).length };
+      })
+      .filter((r) => r.n)
+      .sort((a, b) => b.n - a.n);
+    const maxN = Math.max(1, ...kinds.map((r) => r.n));
+    const num = (n) => `<td class="num${n ? "" : " zero"}">${n}</td>`;
+    const rows = kinds.map((r) => `
+      <tr aria-selected="${state.kind === r.k}">
+        <th scope="row"><button type="button" class="kind-btn" data-kind="${r.k}" aria-pressed="${state.kind === r.k}">${esc(KINDS[r.k])}</button>
+          <span class="kbar" aria-hidden="true"><span style="width:${(r.n / maxN) * 100}%"></span></span></th>
+        ${num(r.n)}${num(r.go)}${num(r.book)}
+      </tr>`).join("");
+
+    const tiers = TIER_ORDER.map((t) => ({ t, n: all.filter((p) => st.get(p.id).tier === t).length }));
+    const stack = tiers.filter((x) => x.n).map((x) =>
+      `<span style="flex:${x.n};background:var(--v-${x.t})" title="${esc(TIERS[x.t].name)}: ${x.n}"></span>`).join("");
+    const legend = tiers.map((x) => `<li><span class="sw sw-${x.t}"></span>${TIERS[x.t].name}<b>${x.n}</b></li>`).join("");
+
+    const meters = orderedVoters().map((v) => {
+      const n = all.filter((p) => v.scores[p.id]).length;
+      return `<li><span class="nm" title="${esc(v.name)}">${esc(v.name)}</span><span class="meter" role="img" aria-label="${esc(v.name)} rated ${n} of ${all.length}"><span style="width:${(n / all.length) * 100}%"></span></span><b>${n}/${all.length}</b></li>`;
+    }).join("");
+
+    $("#side").innerHTML = `
+      <div class="side-head"><h2>Dashboard</h2>
+        <button class="icon-btn side-close" id="sideClose" type="button" aria-label="Close dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <p class="side-sub">Totals for the whole trip</p>
+      <div class="kpis">
+        <div class="kpi"><span class="kpi-l">Spots</span><b>${all.length}</b></div>
+        <div class="kpi"><span class="kpi-l">Voters</span><b>${state.voters.length}</b></div>
+        <div class="kpi"><span class="kpi-l">Definitely go</span><b>${goCount}</b></div>
+        <div class="kpi"><span class="kpi-l">Still to book</span><b>${bookCount}</b><small>${wantedToBook} the group wants · ${bookedCount} booked</small></div>
+      </div>
+      <section class="side-sec">
+        <h3>By type</h3>
+        <table class="kinds">
+          <thead><tr><th scope="col">Type</th><th scope="col" class="num">Spots</th><th scope="col" class="num" title="The group says definitely go">Go</th><th scope="col" class="num" title="Needs a reservation and nobody has booked it yet">Book</th></tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot><tr><th scope="row">Total</th>${num(all.length)}${num(goCount)}${num(bookCount)}</tr></tfoot>
+        </table>
+        <p class="side-note">Go = definitely go · Book = still needs a reservation. Tap a type to filter the list.</p>
+      </section>
+      <section class="side-sec">
+        <h3>Group verdict</h3>
+        ${stack ? `<div class="stack" role="img" aria-label="${esc(tiers.map((x) => `${TIERS[x.t].name} ${x.n}`).join(", "))}">${stack}</div>` : ""}
+        <ul class="legend">${legend}</ul>
+      </section>
+      <section class="side-sec">
+        <h3>Votes in</h3>
+        ${meters ? `<ul class="meters">${meters}</ul>` : `<p class="side-note">Nobody has joined yet.</p>`}
+      </section>`;
+  }
+
+  function setDrawer(open) {
+    const side = $("#side");
+    side.classList.toggle("open", open);
+    $("#scrim").hidden = !open;
+    $("#dashBtn").setAttribute("aria-expanded", String(open));
+    document.body.style.overflow = open ? "hidden" : "";
+    if (open) $("#sideClose")?.focus();
+  }
+  const drawerMode = () => matchMedia("(max-width: 1099px)").matches;
+
+  /* ---------- Rendering ---------- */
+
+  function renderHeader() {
+    const b = state.board;
+    $("#tripTitle").textContent = b.title;
+    $("#tripSub").textContent = [fmtRange(b.startDate, b.endDate), daysToGo(), `${b.places.length} spots`].filter(Boolean).join(" · ");
+    const who = $("#whoBtn");
+    const me = myVoter() || state.me;
+    who.classList.toggle("empty", !me);
+    who.innerHTML = me ? `<span class="lbl">Voting as</span> <b>${esc(me.name)}</b>` : "Pick your name";
+    $("#foot").innerHTML = `Places come from the group's Wanderlog trip${b.editedAt ? ` (last edited ${esc(ago(b.editedAt))})` : ""} and sync every hour. `
+      + `<a href="${SYNC_URL}" target="_blank" rel="noopener">Sync now ↗</a>`;
+  }
+
+  function renderChips() {
+    const all = places();
+    const chips = [{ name: "all", label: "All", n: all.length }, ...state.board.lists.map((l) => ({ name: l.name, label: l.name, n: all.filter((p) => p.lists.includes(l.name)).length }))];
+    const kindChip = state.kind
+      ? `<button type="button" class="chip-btn kind-chip" data-clear-kind aria-label="Clear the ${esc(KINDS[state.kind])} filter">${esc(KINDS[state.kind])} ✕</button>`
+      : "";
+    $("#listChips").innerHTML = kindChip + chips.map((c) => `<button type="button" class="chip-btn" data-list="${esc(c.name)}" aria-pressed="${state.list === c.name}">${esc(c.label)}<span class="n">${c.n}</span></button>`).join("");
+  }
+
+  function render() {
+    state.pendingRender = false;
+    document.querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-selected", String(t.dataset.view === state.view)));
+    $("#spotTools").hidden = state.view !== "spots";
+    $("#sortSel").value = state.sort;
+    $("#unratedOnly").checked = state.unratedOnly;
+    renderChips();
+    renderSide();
+    $("#main").innerHTML = state.view === "picks" ? renderPicks() : state.view === "book" ? renderBook() : renderSpots();
+  }
+
+  // Data changed: patch cards in place on the spots view; re-render other views, but never under someone typing.
+  function scheduleRender() {
+    if (!state.board) return;
+    renderSide();
+    if (state.view === "spots" && document.querySelector("#main .spot")) return refreshSpots();
+    if (document.activeElement?.matches?.("[data-note]")) { state.pendingRender = true; return; }
+    render();
+  }
+
+  function goToSpot(id) {
+    state.view = "spots";
+    state.sort = "list";
+    state.unratedOnly = false;
+    const target = places().find((p) => p.id === id);
+    if (state.list !== "all" && !target?.lists.includes(state.list)) state.list = "all";
+    if (state.kind && (target?.kind || "other") !== state.kind) state.kind = null;
+    render();
+    const card = document.getElementById(`spot-${id}`);
+    if (card) {
+      card.scrollIntoView({ behavior: "smooth", block: "start" });
+      card.classList.add("flash");
+      setTimeout(() => card.classList.remove("flash"), 1500);
+    }
+  }
+
+  /* ---------- Who's voting ---------- */
+
+  function slugify(name) {
+    return name.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+  }
+  function chooseVoter(v) {
+    state.me = { id: v.id, name: v.name };
+    lsSet(`tripRanker.me.${state.boardId}`, JSON.stringify(state.me));
+    $("#whoDlg").close();
+    renderHeader();
+    render();
+  }
+  function openWho(hint) {
+    const dlg = $("#whoDlg");
+    $("#whoHint").textContent = hint || "Pick your name. Your scores are saved under it, so you can open this link on any device and pick up where you left off.";
+    $("#whoNames").innerHTML = orderedVoters().map((v) => `<button type="button" data-voter="${esc(v.id)}">${esc(v.name)}</button>`).join("");
+    $("#whoInput").value = "";
+    if (!dlg.open) dlg.showModal();
+  }
+  $("#whoNames").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-voter]");
+    const v = btn && state.voters.find((x) => x.id === btn.dataset.voter);
+    if (v) chooseVoter(v);
+  });
+  $("#whoForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = $("#whoInput").value.trim().replace(/\s+/g, " ").slice(0, 30);
+    if (!name) return;
+    const id = slugify(name) || `voter-${Math.random().toString(36).slice(2, 8)}`;
+    const existing = state.voters.find((v) => v.id === id);
+    if (existing) return chooseVoter(existing);
+    if (!votersRef) return;
+    try {
+      await votersRef.doc(id).set({ name, scores: {}, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      chooseVoter({ id, name });
+    } catch (err) { dbError(err); $("#whoDlg").close(); }
+  });
+  $("#whoLater").addEventListener("click", () => $("#whoDlg").close());
+  $("#whoBtn").addEventListener("click", () => openWho());
+
+  /* ---------- Events ---------- */
+
+  document.querySelector(".tabs").addEventListener("click", (e) => {
+    const t = e.target.closest("[data-view]");
+    if (!t || t.dataset.view === state.view) return;
+    state.view = t.dataset.view;
+    render();
+    window.scrollTo({ top: 0 });
+  });
+  $("#listChips").addEventListener("click", (e) => {
+    if (e.target.closest("[data-clear-kind]")) { state.kind = null; return render(); }
+    const c = e.target.closest("[data-list]");
+    if (!c) return;
+    state.list = c.dataset.list;
+    render();
+  });
+
+  $("#side").addEventListener("click", (e) => {
+    if (e.target.closest("#sideClose")) return setDrawer(false);
+    const k = e.target.closest("[data-kind]");
+    if (!k) return;
+    state.kind = state.kind === k.dataset.kind ? null : k.dataset.kind;
+    render();
+    if (drawerMode() && state.kind) setDrawer(false);
+    window.scrollTo({ top: 0 });
+  });
+  $("#dashBtn").addEventListener("click", () => setDrawer(true));
+  $("#scrim").addEventListener("click", () => setDrawer(false));
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && $("#side").classList.contains("open")) setDrawer(false);
+  });
+  matchMedia("(max-width: 1099px)").addEventListener("change", (e) => { if (!e.matches) setDrawer(false); });
+  $("#sortSel").addEventListener("change", (e) => { state.sort = e.target.value; render(); });
+  $("#unratedOnly").addEventListener("change", (e) => { state.unratedOnly = e.target.checked; render(); });
+
+  $("#main").addEventListener("click", (e) => {
+    const rate = e.target.closest("[data-rate]");
+    if (rate) return setScore(rate.closest("[data-id]").dataset.id, Number(rate.dataset.rate));
+    const go = e.target.closest("[data-goto]");
+    if (go) return goToSpot(go.dataset.goto);
+  });
+  $("#main").addEventListener("change", (e) => {
+    const row = e.target.closest("[data-id]");
+    if (!row) return;
+    if (e.target.matches("[data-booked]")) saveSpot(row.dataset.id, { booked: e.target.checked });
+    if (e.target.matches("[data-note]")) saveSpot(row.dataset.id, { note: e.target.value.trim().slice(0, 200) });
+  });
+  $("#main").addEventListener("focusout", (e) => {
+    if (e.target.matches("[data-note]") && state.pendingRender) setTimeout(() => { if (!document.activeElement?.matches?.("[data-note]")) render(); }, 0);
+  });
+
+  $("#themeBtn").addEventListener("click", () => {
+    const dark = document.documentElement.dataset.theme
+      ? document.documentElement.dataset.theme === "dark"
+      : matchMedia("(prefers-color-scheme: dark)").matches;
+    const next = dark ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    lsSet("theme", next);
+  });
+
+  window.addEventListener("hashchange", () => {
+    const parsed = parseHash(location.hash);
+    if (parsed && (parsed.slug !== state.slug || parsed.secret !== state.secret)) openBoard();
+    else if (!parsed && location.hash) openBoard();
+  });
+
+  openBoard();
+})();
+</script>
+</body>
+</html>
