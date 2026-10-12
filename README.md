@@ -23,7 +23,9 @@ Each trip has:
 - **Itinerary**: Wanderlog's day-by-day plan, every day of the trip.
 - **Map**: every place as a pin colored by the group's verdict (OpenFreeMap styles via MapLibre, no API key).
 - **Summary** (side panel): totals by type (restaurants, cafés & bakeries, bars, sights…), the group's verdict,
-  and who has voted. Planners can remove a voter and their votes from here.
+  and who has voted.
+- **Who's voting?** (tap your name at the top): switch names or join. Planners can also pick a name and remove that
+  voter and their votes (after a confirmation).
 
 The header shows when the trip last refreshed from Wanderlog.
 
