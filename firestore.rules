@@ -72,12 +72,13 @@ service cloud.firestore {
 
     function validTitle(t) { return t is string && t.size() > 0 && t.size() <= 80; }
 
-    // A voter: their 1-5 scores, and their Top 5 (up to five place ids they say are a must go).
+    // A voter: their 1-5 scores, their must-gos (up to five place ids), and their color slot (0-7) on the trip.
     function validVoter(d) {
-      return d.keys().hasOnly(['name', 'scores', 'top', 'updatedAt'])
+      return d.keys().hasOnly(['name', 'scores', 'top', 'color', 'updatedAt'])
         && d.name is string && d.name.size() > 0 && d.name.size() <= 30
         && d.scores is map && d.scores.size() <= 1000
         && (!('top' in d) || (d.top is list && d.top.size() <= 5))
+        && (!('color' in d) || (d.color is int && d.color >= 0 && d.color < 8))
         && (!('updatedAt' in d) || d.updatedAt is timestamp);
     }
 
