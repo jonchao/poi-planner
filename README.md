@@ -21,7 +21,7 @@ Each trip has:
   below 3.
 - **Reservations**: what still needs booking, starting with what the group wants. Anyone can mark a place booked.
 - **Itinerary**: Wanderlog's day-by-day plan, every day of the trip.
-- **Map**: every place as a pin colored by the group's verdict (OpenStreetMap tiles, no API key).
+- **Map**: every place as a pin colored by the group's verdict (OpenFreeMap styles via MapLibre, no API key).
 - **Summary** (side panel): totals by type (restaurants, cafés & bakeries, bars, sights…), the group's verdict,
   and who has voted. Planners can remove a voter and their votes from here.
 

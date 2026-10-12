@@ -10,7 +10,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
 /* Two screens.
    Trips (planners, signed in with Google): a grid of trip cards with their Wanderlog cover photo, a New trip button,
@@ -311,13 +310,15 @@ details.walkins p { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
 .map-legend li { display: inline-flex; align-items: center; gap: 6px; }
 .map-legend .dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--line); }
 .map-legend .dot.wait { background: var(--surface); border: 1.5px dashed var(--muted); box-shadow: none; }
-.leaflet-container { font: inherit; }
-.map .leaflet-tile-pane { filter: saturate(.45) contrast(.95); }
-.map.dark-tiles .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) saturate(.35) brightness(.9) contrast(.9); }
-.leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--surface); color: var(--ink); box-shadow: 0 8px 28px rgba(0,0,0,.25); }
-.leaflet-popup-content { margin: 12px 14px; width: 250px !important; }
-.leaflet-container a.leaflet-popup-close-button { color: var(--muted); }
-.leaflet-tooltip { font: 600 12.5px var(--font); }
+.map .maplibregl-canvas { outline: none; }
+.map .maplibregl-ctrl-group { background: #fff; box-shadow: var(--shadow); border-radius: 10px; } /* white in both themes: the zoom icons are dark */
+.map .maplibregl-ctrl-attrib { font-size: 11px; }
+.maplibregl-popup-content { background: var(--surface); color: var(--ink); border-radius: 12px; padding: 12px 14px; box-shadow: 0 8px 28px rgba(0,0,0,.22); font: 14px/1.45 var(--font); }
+.maplibregl-popup-tip { display: none; }
+.maplibregl-popup-close-button { color: var(--muted); font-size: 20px; padding: 2px 8px; border-radius: 0 12px 0 8px; }
+.maplibregl-popup-close-button:hover { background: var(--surface-2); color: var(--ink); }
+.pin-label .maplibregl-popup-content { padding: 4px 9px; border-radius: 8px; font: 600 12.5px var(--font); box-shadow: var(--shadow); }
+.pop-wrap { width: 250px; }
 .pop { display: grid; gap: 6px; }
 .pop-img { width: 100%; height: 110px; object-fit: cover; border-radius: 8px; display: block; background: var(--surface-2); }
 .pop h3 { margin: 0; font-size: 15.5px; line-height: 1.25; }
@@ -631,7 +632,6 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
 
 <div class="toast" id="toast" role="status" hidden></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
@@ -1650,51 +1650,115 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     </div>`;
   }
 
-  function initMap() {
-    const el = $("#map");
-    if (!el) return;
-    if (!window.L) { el.innerHTML = `<div class="empty-note">The map couldn't load. Check your connection and reload.</div>`; return; }
-    const map = L.map(el, { zoomControl: true, scrollWheelZoom: true });
-    // OpenStreetMap's own tiles: free, no key. Toned down (and inverted in dark mode) so the pins stand out.
-    el.classList.toggle("dark-tiles", isDark());
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    }).addTo(map);
-    state.map = { map, layer: L.layerGroup().addTo(map), markers: new Map(), openId: null };
-    map.on("popupopen", (e) => { state.map.openId = e.popup._source?.options.placeId || null; });
-    map.on("popupclose", () => { if (state.map) state.map.openId = null; });
-    refreshMap(true);
+  // The map: MapLibre with OpenFreeMap's vector styles (free, no key). The library only loads when the Map tab opens.
+  const MAPLIBRE = "https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/5.24.0/maplibre-gl.min";
+  const MAP_STYLE = { light: "https://tiles.openfreemap.org/styles/positron", dark: "https://tiles.openfreemap.org/styles/fiord" };
+  let mapLib = null;
+  function loadMapLib() {
+    if (window.maplibregl) return Promise.resolve();
+    return (mapLib ||= new Promise((resolve, reject) => {
+      const css = document.createElement("link");
+      css.rel = "stylesheet";
+      css.href = `${MAPLIBRE}.css`;
+      document.head.appendChild(css);
+      const js = document.createElement("script");
+      js.src = `${MAPLIBRE}.js`;
+      js.onload = resolve;
+      js.onerror = () => { mapLib = null; reject(new Error("map library didn't load")); };
+      document.head.appendChild(js);
+    }));
   }
 
-  // Pins colored by the group's verdict; "Definitely go" pins are bigger and drawn on top.
+  async function initMap() {
+    const el = $("#map");
+    if (!el) return;
+    try { await loadMapLib(); } catch (e) {
+      el.innerHTML = `<div class="empty-note">The map couldn't load. Check your connection and reload.</div>`;
+      return;
+    }
+    if (!el.isConnected || state.view !== "map") return; // switched away while it loaded
+    const map = new maplibregl.Map({
+      container: el,
+      style: isDark() ? MAP_STYLE.dark : MAP_STYLE.light,
+      center: [0, 20], zoom: 1.5,
+      attributionControl: { compact: true },
+      dragRotate: false, pitchWithRotate: false, touchPitch: false,
+    });
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-left");
+    map.touchZoomRotate.disableRotation();
+    state.map = { map, popup: null, openId: null, label: new maplibregl.Popup({ closeButton: false, closeOnClick: false, className: "pin-label", offset: 12 }) };
+    map.on("load", () => {
+      map.addSource("places", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      map.addLayer({
+        id: "places", type: "circle", source: "places",
+        paint: {
+          "circle-radius": ["get", "radius"],
+          "circle-color": ["get", "fill"],
+          "circle-stroke-color": ["get", "ring"],
+          "circle-stroke-width": ["get", "ringWidth"],
+        },
+        layout: { "circle-sort-key": ["get", "rank"] },
+      });
+      map.on("click", "places", (e) => openPin(e.features[0].properties.id));
+      map.on("mouseenter", "places", (e) => {
+        map.getCanvas().style.cursor = "pointer";
+        const f = e.features[0];
+        state.map.label.setLngLat(f.geometry.coordinates).setText(f.properties.name).addTo(map);
+      });
+      map.on("mouseleave", "places", () => { map.getCanvas().style.cursor = ""; state.map.label.remove(); });
+      refreshMap(true);
+    });
+  }
+
+  function openPin(id) {
+    const p = places().find((x) => x.id === id);
+    if (!p || !state.map) return;
+    const { map } = state.map;
+    state.map.label.remove();
+    state.map.popup?.remove();
+    const popup = new maplibregl.Popup({ maxWidth: "280px", offset: 14 })
+      .setLngLat([p.lng, p.lat]).setHTML(`<div class="pop-wrap">${popupHTML(p)}</div>`).addTo(map);
+    popup.on("close", () => { if (state.map?.popup === popup) { state.map.popup = null; state.map.openId = null; } });
+    state.map.popup = popup;
+    state.map.openId = id;
+  }
+
+  // Pins colored by the group's verdict; "Must go" pins are the biggest and drawn on top.
   function refreshMap(fit) {
     if (!state.map) return;
-    const { map, layer } = state.map;
-    const reopen = state.map.openId;
-    layer.clearLayers();
-    state.map.markers.clear();
+    const { map } = state.map;
+    const source = map.getSource("places");
+    if (!source) return; // style still loading; the load handler draws the pins
     const shown = places().filter(inList);
     const pts = shown.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
-    // Pins get a ring that contrasts with the map: the page surface on light tiles, light ink on dark ones.
-    const surface = cssVar("--surface"), muted = cssVar("--muted"), ring = isDark() ? cssVar("--ink") : surface;
-    const ordered = [...pts].sort((a, b) => TIER_ORDER.indexOf(stats(b).tier) - TIER_ORDER.indexOf(stats(a).tier));
-    for (const p of ordered) {
-      const t = stats(p).tier;
-      const marker = L.circleMarker([p.lat, p.lng], t === "wait"
-        ? { placeId: p.id, radius: 7, color: muted, weight: 1.5, dashArray: "3 3", fillColor: surface, fillOpacity: 1 }
-        : { placeId: p.id, radius: t === "must" ? 11 : t === "def" ? 9.5 : 8, color: ring, weight: isDark() ? 1.5 : 2, fillColor: cssVar(`--v-${t}`), fillOpacity: 1 });
-      marker.bindPopup(() => popupHTML(p), { maxWidth: 280, minWidth: 250 });
-      marker.bindTooltip(p.name, { direction: "top", offset: [0, -8] });
-      layer.addLayer(marker);
-      state.map.markers.set(p.id, marker);
+    // A ring that contrasts with the map: white on the light style, light ink on the dark one.
+    const surface = cssVar("--surface"), muted = cssVar("--muted"), ring = isDark() ? cssVar("--ink") : "#ffffff";
+    source.setData({
+      type: "FeatureCollection",
+      features: pts.map((p) => {
+        const t = stats(p).tier;
+        return {
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [p.lng, p.lat] },
+          properties: {
+            id: p.id, name: p.name, rank: TIER_ORDER.length - TIER_ORDER.indexOf(t),
+            radius: t === "must" ? 10 : t === "def" ? 8.5 : t === "wait" ? 6 : 7,
+            fill: t === "wait" ? surface : cssVar(`--v-${t}`),
+            ring: t === "wait" ? muted : ring,
+            ringWidth: t === "wait" ? 1.5 : 2,
+          },
+        };
+      }),
+    });
+    if (state.map.openId && state.map.popup) {
+      const p = places().find((x) => x.id === state.map.openId);
+      if (p) state.map.popup.setHTML(`<div class="pop-wrap">${popupHTML(p)}</div>`);
     }
-    if (reopen && state.map.markers.has(reopen)) state.map.markers.get(reopen).openPopup();
     const note = $("#mapNote");
     if (note) note.textContent = `${pts.length} of ${places().length} places shown${shown.length < places().length ? " (filters apply)" : ""}. Tap a pin for details.`;
-    if (fit) {
-      if (pts.length) map.fitBounds(L.latLngBounds(pts.map((p) => [p.lat, p.lng])), { padding: [30, 30], maxZoom: 15 });
-      else map.setView([20, 0], 2);
+    if (fit && pts.length) {
+      const lngs = pts.map((p) => p.lng), lats = pts.map((p) => p.lat);
+      map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { padding: 40, maxZoom: 14, duration: 0 });
     }
   }
   function destroyMap() {
