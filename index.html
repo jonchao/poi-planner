@@ -12,8 +12,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600;700&display=swap">
 <style>
 /* Layout: trip title, then two columns: the main column (sticky bar with tabs + list filters, then the view)
-   and a sticky dashboard side panel with whole-trip totals (by type, group verdict, votes in).
-   Below 1100px the dashboard becomes a slide-over panel opened from the bar.
+   and a sticky summary side panel with whole-trip totals (by type, group verdict, votes in).
+   Below 1100px the summary becomes a slide-over panel opened from the bar.
    Three views share the same place data: "All spots" is one card per place (photo, short description,
    your 1-5 rating, everyone's scores), "Group picks" ranks places into tiers by the group's scores,
    "Reservations" lists what still needs booking. */
@@ -244,7 +244,7 @@ details.walkins { margin-top: 22px; background: var(--surface); border: 1px soli
 details.walkins summary { cursor: pointer; font-weight: 600; }
 details.walkins p { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
 
-/* Dashboard side panel */
+/* Summary side panel */
 .side { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; margin-top: 4px; padding: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); scrollbar-width: thin; }
 .side-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .side-head h2 { margin: 0; font: 600 20px/1.2 var(--font-display); }
@@ -375,9 +375,9 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
             <button class="tab" role="tab" data-view="picks" type="button">Group picks</button>
             <button class="tab" role="tab" data-view="book" type="button">Reservations</button>
           </nav>
-          <button class="dash-btn" id="dashBtn" type="button" aria-controls="side" aria-expanded="false" aria-label="Dashboard" title="Dashboard">
+          <button class="dash-btn" id="dashBtn" type="button" aria-controls="side" aria-expanded="false" aria-label="Summary" title="Summary">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>
-            <span class="lbl">Dashboard</span>
+            <span class="lbl">Summary</span>
           </button>
         </div>
         <div class="filters">
@@ -396,7 +396,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
       <main id="main"></main>
       <footer id="foot"></footer>
     </div>
-    <aside class="side" id="side" aria-label="Trip dashboard"></aside>
+    <aside class="side" id="side" aria-label="Trip summary"></aside>
   </div>
   <div class="scrim" id="scrim" hidden></div>
 </div>
@@ -447,7 +447,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
     wait:  { name: "Needs votes",   cls: "t-wait",  hint: "Fewer than half the group has rated it" },
   };
   const TIER_ORDER = ["def", "prob", "maybe", "skip", "wait"];
-  // Place types for the dashboard (set by the sync script from Wanderlog's categories).
+  // Place types for the summary (set by the sync script from Wanderlog's categories).
   const KINDS = {
     restaurant: "Restaurants", cafe: "Cafés & bakeries", bar: "Bars", sight: "Museums & sights",
     area: "Neighborhoods", market: "Markets & shopping", activity: "Activities & events", other: "Other",
@@ -941,7 +941,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
       ${!first.length && !undecided.length && !booked.length && !later.length ? `<div class="empty-note">Nothing here needs a reservation.</div>` : ""}`;
   }
 
-  /* ---------- Dashboard side panel (whole-trip totals; ignores the filters) ---------- */
+  /* ---------- Summary side panel (whole-trip totals; ignores the filters) ---------- */
 
   function renderSide() {
     const all = places();
@@ -979,8 +979,8 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
     }).join("");
 
     $("#side").innerHTML = `
-      <div class="side-head"><h2>Dashboard</h2>
-        <button class="icon-btn side-close" id="sideClose" type="button" aria-label="Close dashboard">
+      <div class="side-head"><h2>Summary</h2>
+        <button class="icon-btn side-close" id="sideClose" type="button" aria-label="Close summary">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
         </button>
       </div>

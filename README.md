@@ -8,7 +8,7 @@ A page for deciding, as a group, which places from a Wanderlog trip are worth go
 - **Group picks**: places ranked into tiers. *Definitely go* means an average of 4 or more with nobody below 3.
 - **Reservations**: places that need booking, starting with the ones the group wants. Anyone can mark a place
   booked and add details.
-- **Dashboard** (side panel): totals by type (restaurants, cafés & bakeries, bars, sights…), the group's
+- **Summary** (side panel): totals by type (restaurants, cafés & bakeries, bars, sights…), the group's
   verdict, and who has voted. Tap a type to filter.
 
 Live at <https://jonchao.github.io/trip-ranker/>, but each trip opens through its own private board link
