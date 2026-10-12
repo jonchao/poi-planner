@@ -402,14 +402,14 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script>
 (() => {
-  // Same Firebase project as the Travel Tracker; votes live under rankBoards/{boardId}.
+  // Trip Ranker's own Firebase project; votes live under rankBoards/{boardId} (rules: firestore.rules).
   const firebaseConfig = {
-    apiKey: "AIzaSyCMqAv_2kaKFoM_MbVY1O_8AGGZm-DC5qw",
-    authDomain: "jon-steph-wedding.firebaseapp.com",
-    projectId: "jon-steph-wedding",
-    storageBucket: "jon-steph-wedding.firebasestorage.app",
-    messagingSenderId: "1010364448757",
-    appId: "1:1010364448757:web:c21d9bed632b8f21d62abc"
+    apiKey: "AIzaSyCwUhxT7pmI8cgk_7j-K0YbXwuThm636Oo",
+    authDomain: "poi-planner-de173.firebaseapp.com",
+    projectId: "poi-planner-de173",
+    storageBucket: "poi-planner-de173.firebasestorage.app",
+    messagingSenderId: "225752772584",
+    appId: "1:225752772584:web:a091a48cdcb78884affe5d"
   };
   const SYNC_URL = "https://github.com/jonchao/trip-ranker/actions/workflows/sync.yml";
   const SCORE_WORDS = ["", "Skip it", "Meh", "Sure", "Want to", "Must go"];

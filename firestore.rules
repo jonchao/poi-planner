@@ -1,0 +1,41 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Trip Ranker (jonchao.github.io/trip-ranker): each person's 1-5 scores and shared booking notes.
+    // Every browser signs in anonymously. A board's id is derived from the secret in its private link,
+    // so knowing the link is the access check. Boards can't be listed, and short ids are refused so
+    // a board id can't be guessed.
+    function signedIn() { return request.auth != null; }
+    function boardOk(boardId) { return signedIn() && boardId.size() >= 30; }
+
+    match /rankBoards/{boardId}/voters/{voterId} {
+      allow read, delete: if boardOk(boardId);
+      allow create, update: if boardOk(boardId) && voterId.size() <= 40 && validVoter(request.resource.data);
+    }
+
+    match /rankBoards/{boardId}/spots/{placeId} {
+      allow read, delete: if boardOk(boardId);
+      allow create, update: if boardOk(boardId) && placeId.size() <= 300 && validSpot(request.resource.data);
+    }
+
+    function validVoter(d) {
+      return d.keys().hasOnly(['name', 'scores', 'updatedAt'])
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 30
+        && d.scores is map && d.scores.size() <= 1000
+        && (!('updatedAt' in d) || d.updatedAt is timestamp);
+    }
+
+    function validSpot(d) {
+      return d.keys().hasOnly(['booked', 'note', 'by', 'updatedAt'])
+        && (!('booked' in d) || d.booked is bool)
+        && (!('note' in d) || (d.note is string && d.note.size() <= 200))
+        && (!('by' in d) || (d.by is string && d.by.size() <= 30))
+        && (!('updatedAt' in d) || d.updatedAt is timestamp);
+    }
+
+    // Everything else is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

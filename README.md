@@ -21,9 +21,9 @@ Live at <https://jonchao.github.io/trip-ranker/>, but each trip opens through it
   but the trip can only be read with the board link.
 - `.github/workflows/sync.yml` runs the sync every hour and commits changes. Run it on demand from the
   [Actions tab](https://github.com/jonchao/trip-ranker/actions/workflows/sync.yml) ("Run workflow").
-- Votes and booking notes live in Firestore (the `jon-steph-wedding` project, shared with the Travel Tracker)
-  under `rankBoards/{boardId}`. The board id is derived from the link's secret. Rules are in
-  `../firestore.rules`; paste them into Firebase console → Firestore → Rules → Publish after changing them.
+- Votes and booking notes live in Trip Ranker's own Firebase project, in Firestore under `rankBoards/{boardId}`.
+  The board id is derived from the link's secret. Browsers sign in anonymously. Rules are in `firestore.rules`;
+  after changing them, paste them into Firebase console → Firestore → Rules → Publish.
 - People pick their name the first time they open a board. Scores are saved under that name, so the same
   person can switch devices. It runs on trust: anyone with the link can vote as anyone.
 
