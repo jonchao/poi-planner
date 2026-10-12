@@ -141,6 +141,13 @@ app-switcher { color: var(--ink); --app-switcher-hover-bg: var(--surface-2); }
 .not-you:hover { color: var(--accent); }
 .votes-list .you { color: var(--muted); font-weight: 500; }
 .names button { display: inline-flex; align-items: center; gap: 7px; }
+.names button[aria-pressed="true"] { outline: 2px solid var(--pc, var(--accent)); outline-offset: 2px; }
+.dlg-close { position: absolute; top: 12px; right: 12px; color: var(--muted); }
+#whoTitle { padding-right: 40px; }
+.who-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: -4px 0 16px; padding: 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; }
+.who-actions .lbl { flex: 1 1 100%; margin: 0; font-size: 13px; color: var(--muted); }
+.btn.danger-ghost { background: transparent; color: var(--hot); border: 1px solid color-mix(in srgb, var(--hot) 45%, transparent); }
+.btn.danger-ghost:hover { background: var(--hot-soft); }
 .names button[aria-current="true"] { border-color: var(--pc, var(--accent)); background: color-mix(in srgb, var(--pc, var(--accent)) 14%, var(--surface)); }
 .toast-act { margin-left: 10px; border: 0; background: none; padding: 0; color: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 .chip-btn { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 5px 12px; font-size: 13.5px; white-space: nowrap; }
@@ -375,15 +382,12 @@ details.walkins p { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
 .sw-must { background: var(--v-must); } .sw-def { background: var(--v-def); } .sw-prob { background: var(--v-prob); } .sw-maybe { background: var(--v-maybe); }
 .sw-skip { background: var(--v-skip); } .sw-wait { background: var(--v-wait); }
 .meters { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; font-size: 13.5px; }
-.meters li { display: grid; grid-template-columns: minmax(0, 80px) minmax(0, 1fr) auto auto auto; align-items: center; gap: 8px; }
+.meters li { display: grid; grid-template-columns: minmax(0, 88px) minmax(0, 1fr) auto auto; align-items: center; gap: 8px; }
 .meters .tops { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
 .meters .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .meter { height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--pc, var(--accent)) 20%, var(--surface)); overflow: hidden; }
 .meter span { display: block; height: 100%; background: var(--pc, var(--accent)); border-radius: 0 3px 3px 0; }
 .meters b { font-weight: 600; font-variant-numeric: tabular-nums; font-size: 12.5px; }
-.remove-btn { display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 6px; background: none; color: var(--muted); }
-.remove-btn:hover { background: var(--hot-soft); color: var(--hot); }
-.remove-btn svg { width: 15px; height: 15px; }
 .scrim { position: fixed; inset: 0; z-index: 19; background: rgba(var(--shade),.5); }
 
 @media (max-width: 1099px) {
@@ -595,9 +599,13 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
 </div>
 
 <dialog class="dlg" id="whoDlg" aria-labelledby="whoTitle">
+  <button class="icon-btn dlg-close" type="button" data-close aria-label="Close">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </button>
   <h2 id="whoTitle">Who's voting?</h2>
   <p id="whoHint"></p>
   <div class="names" id="whoNames"></div>
+  <div class="who-actions" id="whoActions" hidden></div>
   <form id="whoForm">
     <input id="whoInput" maxlength="30" placeholder="New here? Type your name" autocomplete="given-name" aria-label="Your name">
     <button class="btn" type="submit">Join</button>
@@ -1150,6 +1158,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
       renderHeader();
       scheduleRender();
       state.votersLoaded = true;
+      if ($("#whoDlg").open) renderWhoNames();
       greetVoter();
     }, dbError));
     tripUnsubs.push(spotsRef().onSnapshot((snap) => {
@@ -1854,10 +1863,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
 
     const meters = orderedVoters().map((v) => {
       const n = all.filter((p) => scoreOf(v, p.id)).length;
-      const remove = state.isPlanner
-        ? `<button class="remove-btn" type="button" data-remove-voter="${esc(v.id)}" title="Remove ${esc(v.name)} and their votes" aria-label="Remove ${esc(v.name)} and their votes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg></button>`
-        : "<span></span>";
-      return `<li style="${personStyle(v)}"><span class="nm" title="${esc(v.name)}">${pdot(v)}${esc(v.name)}</span><span class="meter" role="img" aria-label="${esc(v.name)} rated ${n} of ${all.length}"><span style="width:${(n / all.length) * 100}%"></span></span><b>${n}/${all.length}</b><span class="tops" title="${esc(v.name)} has picked ${v.top.length} of ${TOP_MAX} Top 5 places"><span class="top-star" style="margin:0">★</span>${v.top.length}/${TOP_MAX}</span>${remove}</li>`;
+      return `<li style="${personStyle(v)}"><span class="nm" title="${esc(v.name)}">${pdot(v)}${esc(v.name)}</span><span class="meter" role="img" aria-label="${esc(v.name)} rated ${n} of ${all.length}"><span style="width:${(n / all.length) * 100}%"></span></span><b>${n}/${all.length}</b><span class="tops" title="${esc(v.name)} has picked ${v.top.length} of ${TOP_MAX} Top 5 places"><span class="top-star" style="margin:0">★</span>${v.top.length}/${TOP_MAX}</span></li>`;
     }).join("");
 
     $("#side").innerHTML = `
@@ -2015,11 +2021,29 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     renderHeader();
     render();
   }
+  let whoSelected = null; // planners: the name picked in the dialog, waiting for "Vote as" or "Remove"
+  function renderWhoNames() {
+    if (whoSelected && !state.voters.some((v) => v.id === whoSelected)) whoSelected = null;
+    $("#whoNames").innerHTML = orderedVoters().map((v) =>
+      `<button type="button" data-voter="${esc(v.id)}" aria-current="${v.id === state.me?.id}"${state.isPlanner ? ` aria-pressed="${v.id === whoSelected}"` : ""} style="${personStyle(v)}">${pdot(v)}${esc(v.name)}</button>`).join("");
+    const v = state.voters.find((x) => x.id === whoSelected);
+    const actions = $("#whoActions");
+    actions.hidden = !v;
+    if (!v) { actions.innerHTML = ""; return; }
+    const n = places().filter((p) => scoreOf(v, p.id)).length;
+    actions.innerHTML = `
+      <p class="lbl">${esc(v.name)}${v.id === state.me?.id ? " (you)" : ""} · ${n} rated · ${v.top.length} must-go${v.top.length === 1 ? "" : "s"}</p>
+      ${v.id === state.me?.id ? "" : `<button class="btn small" type="button" data-who-vote>Vote as ${esc(v.name)}</button>`}
+      <button class="btn small danger-ghost" type="button" data-who-remove>Remove ${esc(v.name)}</button>`;
+  }
   function openWho(hint) {
     const dlg = $("#whoDlg");
-    $("#whoHint").textContent = hint || "Pick your name. Your scores are saved under it, so you can open this link on any device and pick up where you left off.";
-    $("#whoNames").innerHTML = orderedVoters().map((v) => `<button type="button" data-voter="${esc(v.id)}" aria-current="${v.id === state.me?.id}" style="${personStyle(v)}">${pdot(v)}${esc(v.name)}</button>`).join("");
-    if (!hint && state.me) $("#whoHint").textContent = `You're voting as ${myVoter()?.name || state.me.name}. Tap a different name to switch, or add yours.`;
+    whoSelected = null;
+    $("#whoHint").textContent = hint
+      || (state.isPlanner ? "Tap a name to vote as them or remove them, or add a new name below."
+        : state.me ? `You're voting as ${myVoter()?.name || state.me.name}. Tap a different name to switch, or add yours.`
+        : "Pick your name. Your scores are saved under it, so you can open this link on any device and pick up where you left off.");
+    renderWhoNames();
     const first = (state.user?.displayName || "").split(" ")[0];
     $("#whoInput").value = first && !state.voters.some((v) => v.id === slugify(first)) ? first : "";
     if (!dlg.open) dlg.showModal();
@@ -2027,7 +2051,19 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
   $("#whoNames").addEventListener("click", (e) => {
     const btn = e.target.closest("[data-voter]");
     const v = btn && state.voters.find((x) => x.id === btn.dataset.voter);
-    if (v) chooseVoter(v);
+    if (!v) return;
+    if (!state.isPlanner) return chooseVoter(v);
+    whoSelected = whoSelected === v.id ? null : v.id;
+    renderWhoNames();
+  });
+  $("#whoActions").addEventListener("click", async (e) => {
+    const v = state.voters.find((x) => x.id === whoSelected);
+    if (!v) return;
+    if (e.target.closest("[data-who-vote]")) return chooseVoter(v);
+    if (e.target.closest("[data-who-remove]")) {
+      await removeVoter(v.id); // asks for confirmation first
+      renderWhoNames();
+    }
   });
   $("#whoForm").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -2066,8 +2102,6 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
 
   $("#side").addEventListener("click", (e) => {
     if (e.target.closest("#sideClose")) return setDrawer(false);
-    const rm = e.target.closest("[data-remove-voter]");
-    if (rm) return removeVoter(rm.dataset.removeVoter);
     const k = e.target.closest("[data-kind]");
     if (!k) return;
     state.kind = state.kind === k.dataset.kind ? null : k.dataset.kind;
