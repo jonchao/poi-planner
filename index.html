@@ -153,7 +153,18 @@ main { padding: 16px 0 40px; }
 .links { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: 13.5px; }
 .links a { text-decoration: none; font-weight: 500; }
 .links a:hover { text-decoration: underline; }
-.scores { grid-area: scores; display: grid; gap: 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+.scores { grid-area: scores; display: grid; grid-template-columns: minmax(0, 1fr) minmax(130px, 200px); gap: 10px 20px; align-items: start; padding-top: 12px; border-top: 1px solid var(--line); }
+.rate-legend { display: none; margin: 0; font-size: 12px; color: var(--muted); }
+/* Everyone's scores for this place: one row per person, highest first, next to your rating buttons */
+.group-col { display: grid; gap: 6px; min-width: 0; }
+.group-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.votes-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+.votes-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; }
+.votes-list .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.votes-list li.me .nm { font-weight: 700; }
+.votes-list .sc { display: grid; place-items: center; flex: none; min-width: 26px; height: 22px; padding: 0 6px; border-radius: 6px; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.votes-list .sc.none { color: var(--muted); font-weight: 500; }
+.votes-list .empty { color: var(--muted); font-size: 13px; }
 .row-label { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
 .rate { display: grid; gap: 6px; }
 .rate-btns { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; max-width: 420px; }
@@ -313,7 +324,10 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
 @media (max-width: 600px) {
   .spot { grid-template-columns: 64px minmax(0, 1fr); grid-template-areas: "thumb info" "scores scores"; padding: 14px; gap: 10px 12px; }
   .thumb { width: 64px; height: 64px; font-size: 22px; }
-  .rate-btns { max-width: none; }
+  .rate-btns { max-width: none; gap: 4px; }
+  .rate-btn span { display: none; }
+  .rate-legend { display: block; }
+  .scores { grid-template-columns: minmax(0, 1fr) 108px; gap: 10px 14px; }
   .who span.lbl { display: none; }
   .tab { padding: 10px 8px; }
   .dash-btn { padding: 7px 9px; }
@@ -326,6 +340,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
   .bk { grid-template-columns: minmax(0, 1fr); }
   .bk-check { justify-self: start; }
 }
+@media (max-width: 359px) { .scores { grid-template-columns: minmax(0, 1fr); } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
@@ -338,7 +353,6 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
 <div id="app" hidden>
   <header class="shell top">
     <div class="top-row">
-      <app-switcher></app-switcher>
       <div class="titles">
         <p class="eyebrow">Trip Ranker</p>
         <h1 id="tripTitle"></h1>
@@ -348,6 +362,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
       <button class="icon-btn" id="themeBtn" type="button" title="Switch light / dark" aria-label="Switch light or dark theme">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 4v16" /><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg>
       </button>
+      <app-switcher></app-switcher>
     </div>
   </header>
 
@@ -733,14 +748,31 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
       <div class="rate">
         <span class="row-label">${state.me ? "Your rating" : "Rate it (pick your name first)"}</span>
         <div class="rate-btns" role="group" aria-label="Your rating for ${esc(p.name)}">${btns}</div>
+        <p class="rate-legend">1 skip it · 3 sure · 5 must go</p>
       </div>
-      <div class="group-row">
-        <span class="row-label">Group</span>
-        ${s.count ? `<span class="avg"><b>${s.avg.toFixed(1)}</b><small>avg</small></span>` : ""}
-        ${tierHTML(s)}
-        ${s.split ? `<span class="split">Split vote</span>` : ""}
-      </div>
-      ${peopleHTML(p)}`;
+      <div class="group-col">
+        <div class="group-head">
+          <span class="row-label">Group</span>
+          ${s.count ? `<span class="avg"><b>${s.avg.toFixed(1)}</b><small>avg</small></span>` : ""}
+          ${tierHTML(s)}
+          ${s.split ? `<span class="split">Split vote</span>` : ""}
+        </div>
+        ${votesListHTML(p)}
+      </div>`;
+  }
+
+  // Everyone's score for one place, highest first; people who haven't rated it go last.
+  function votesListHTML(p) {
+    if (!state.voters.length) return `<p class="votes-list empty">No one has joined yet</p>`;
+    const rows = state.voters
+      .map((v) => ({ v, s: v.scores[p.id] || 0 }))
+      .sort((a, b) => b.s - a.s || (a.v.id === state.me?.id ? -1 : b.v.id === state.me?.id ? 1 : a.v.name.localeCompare(b.v.name)));
+    return `<ul class="votes-list" aria-label="Everyone's scores for ${esc(p.name)}">${rows.map(({ v, s }) => {
+      const me = v.id === state.me?.id ? ` class="me"` : "";
+      return s
+        ? `<li${me} title="${esc(v.name)}: ${s} – ${SCORE_WORDS[s]}"><span class="nm">${esc(v.name)}</span><b class="sc s${s}">${s}</b></li>`
+        : `<li${me} title="${esc(v.name)} hasn't rated this yet"><span class="nm">${esc(v.name)}</span><span class="sc none">–</span></li>`;
+    }).join("")}</ul>`;
   }
 
   function cardHTML(p) {
