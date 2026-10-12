@@ -35,12 +35,9 @@
   --warn-soft: #fdf0d3;
   --hot: #b42318;
   --hot-soft: #fde6e3;
-  /* 1-5 score scale: sand to sunset */
-  --s1: #ece8e1; --s1-fg: #5b5f66;
-  --s2: #fde3c6; --s2-fg: #6b3a0a;
-  --s3: #fbbd87; --s3-fg: #4a2208;
-  --s4: #f3864f; --s4-fg: #2a1004;
-  --s5: #c2410c; --s5-fg: #ffffff;
+  /* Person colors: each voter keeps one of these on a trip (categorical, fixed order; names always shown beside them) */
+  --p0: #2a78d6; --p0-on: #ffffff; --p1: #eb6834; --p1-on: #0e2235; --p2: #1baf7a; --p2-on: #0e2235; --p3: #eda100; --p3-on: #0e2235;
+  --p4: #e87ba4; --p4-on: #0e2235; --p5: #008300; --p5-on: #ffffff; --p6: #4a3aa7; --p6-on: #ffffff; --p7: #e34948; --p7-on: #0e2235;
   /* Group verdict, an ordered scale: ocean steps for the "go" tiers, neutrals for skip / not enough votes */
   --v-must: #0a2e4d; --v-def: #0b6fa0; --v-prob: #4fa9d4; --v-maybe: #a9d6ec; --v-skip: #b6c3ce; --v-wait: #d2dfe9;
   --v-soft: #e0f0f8; --v-on: #ffffff; /* light pill background, and text on the darker verdict fills */
@@ -56,8 +53,8 @@
     --bg: #08131e; --surface: #0e1d2b; --surface-2: #14283a; --line: #213a50; --ink: #e5eef6; --muted: #8fa5b8;
     --accent: #4cc0e8; --accent-soft: #0f3047;
     --ok: #63d394; --ok-soft: #133226; --warn: #f2bb55; --warn-soft: #33290f; --hot: #ff8f80; --hot-soft: #3a1a18;
-    --s1: #1b2a38; --s1-fg: #a3b3c2; --s2: #3d2c20; --s2-fg: #f8d7b8; --s3: #7c4321; --s3-fg: #ffe0c6;
-    --s4: #e07a45; --s4-fg: #1c0b03; --s5: #ff9b62; --s5-fg: #1c0b03;
+    --p0: #3987e5; --p0-on: #0e2235; --p1: #d95926; --p1-on: #0e2235; --p2: #199e70; --p2-on: #0e2235; --p3: #c98500; --p3-on: #0e2235;
+    --p4: #d55181; --p4-on: #0e2235; --p5: #008300; --p5-on: #ffffff; --p6: #9085e9; --p6-on: #0e2235; --p7: #e66767; --p7-on: #0e2235;
     --v-must: #dff3ff; --v-def: #7ccbf0; --v-prob: #3a8fbe; --v-maybe: #1d5578; --v-skip: #4b5f71; --v-wait: #213a50; --v-soft: #12344d; --v-on: #04121d;
     --star: #fbbf24;
     --shade: 4,12,20;
@@ -69,8 +66,8 @@
   --bg: #08131e; --surface: #0e1d2b; --surface-2: #14283a; --line: #213a50; --ink: #e5eef6; --muted: #8fa5b8;
   --accent: #4cc0e8; --accent-soft: #0f3047;
   --ok: #63d394; --ok-soft: #133226; --warn: #f2bb55; --warn-soft: #33290f; --hot: #ff8f80; --hot-soft: #3a1a18;
-  --s1: #1b2a38; --s1-fg: #a3b3c2; --s2: #3d2c20; --s2-fg: #f8d7b8; --s3: #7c4321; --s3-fg: #ffe0c6;
-  --s4: #e07a45; --s4-fg: #1c0b03; --s5: #ff9b62; --s5-fg: #1c0b03;
+  --p0: #3987e5; --p0-on: #0e2235; --p1: #d95926; --p1-on: #0e2235; --p2: #199e70; --p2-on: #0e2235; --p3: #c98500; --p3-on: #0e2235;
+  --p4: #d55181; --p4-on: #0e2235; --p5: #008300; --p5-on: #ffffff; --p6: #9085e9; --p6-on: #0e2235; --p7: #e66767; --p7-on: #0e2235;
   --v-must: #dff3ff; --v-def: #7ccbf0; --v-prob: #3a8fbe; --v-maybe: #1d5578; --v-skip: #4b5f71; --v-wait: #213a50; --v-soft: #12344d; --v-on: #04121d;
   --star: #fbbf24;
   --shade: 4,12,20;
@@ -135,6 +132,17 @@ app-switcher { color: var(--ink); --app-switcher-hover-bg: var(--surface-2); }
 .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 0; }
 .chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; flex: 1 1 auto; min-width: 0; }
 .chips::-webkit-scrollbar { display: none; }
+.voter-chip { display: inline-flex; align-items: center; gap: 7px; flex: none; max-width: 170px; border: 1.5px solid var(--pc, var(--accent)); background: color-mix(in srgb, var(--pc, var(--accent)) 14%, var(--surface)); color: var(--ink); border-radius: 999px; padding: 3px 11px 3px 3px; font-size: 13.5px; font-weight: 600; white-space: nowrap; }
+.voter-chip .av { display: grid; place-items: center; flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--pc, var(--accent)); color: var(--pc-on, var(--surface)); font-size: 12.5px; font-weight: 700; }
+.voter-chip .nm { overflow: hidden; text-overflow: ellipsis; }
+.voter-chip.empty { padding: 4px 12px; border-style: dashed; color: var(--accent); background: transparent; }
+.as-name { color: var(--accent); }
+.not-you { border: 0; background: none; padding: 0; margin-left: 2px; color: var(--muted); font: inherit; letter-spacing: inherit; text-transform: none; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.not-you:hover { color: var(--accent); }
+.votes-list .you { color: var(--muted); font-weight: 500; }
+.names button { display: inline-flex; align-items: center; gap: 7px; }
+.names button[aria-current="true"] { border-color: var(--pc, var(--accent)); background: color-mix(in srgb, var(--pc, var(--accent)) 14%, var(--surface)); }
+.toast-act { margin-left: 10px; border: 0; background: none; padding: 0; color: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 .chip-btn { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 5px 12px; font-size: 13.5px; white-space: nowrap; }
 .chip-btn[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
 .chip-btn .n { opacity: .65; margin-left: 4px; }
@@ -187,29 +195,29 @@ main { padding: 16px 0 40px; }
 .votes-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; }
 .votes-list .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .votes-list li.me .nm { font-weight: 700; }
-.votes-list .sc { display: grid; place-items: center; flex: none; min-width: 26px; height: 22px; padding: 0 6px; border-radius: 6px; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.votes-list .sc.none { color: var(--muted); font-weight: 500; }
+.votes-list .sc { display: grid; place-items: center; flex: none; min-width: 26px; height: 22px; padding: 0 6px; border-radius: 6px; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; background: var(--pc); color: var(--pc-on); }
+.votes-list .sc.none { background: none; color: var(--muted); font-weight: 500; }
+.votes-list .nm, .meters .nm { display: inline-flex; align-items: center; gap: 6px; }
+.pdot { display: inline-block; flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--pc, var(--muted)); }
 .votes-list.empty { color: var(--muted); font-size: 13px; }
 .row-label { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
 .rate { display: grid; gap: 6px; }
-.rate-btns { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; max-width: 420px; }
+.rate-btns { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; max-width: 500px; }
 .rate-btn { display: grid; justify-items: center; gap: 0; padding: 6px 2px; min-height: 48px; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; transition: background-color .12s ease, transform .12s ease; }
 .rate-btn b { font-size: 17px; line-height: 1.1; }
 .rate-btn span { font-size: 11px; color: var(--muted); white-space: nowrap; }
 .rate-btn:hover { border-color: var(--muted); }
 .rate-btn:active { transform: scale(.96); }
-.rate-btn[aria-pressed="true"] { border-color: transparent; }
+.rate-btn[aria-pressed="true"] { border-color: transparent; background: var(--pc, var(--accent)); color: var(--pc-on, #fff); }
 .rate-btn[aria-pressed="true"] span { color: inherit; opacity: .85; }
 .rate-btn:disabled { cursor: default; opacity: .4; transform: none; }
 .rate-btn:disabled:hover { border-color: var(--line); }
 .rate-btn[aria-pressed="true"]:disabled { opacity: 1; }
 /* Top 5: each person's must-gos (up to five, all equal) */
-.top-btn { justify-self: start; display: inline-flex; align-items: center; gap: 6px; margin-top: 2px; padding: 6px 12px 6px 9px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; font-size: 13.5px; font-weight: 600; color: var(--muted); }
-.top-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
-.top-btn:hover { border-color: var(--muted); color: var(--ink); }
-.top-btn[aria-pressed="true"] { border-color: var(--star); color: var(--ink); background: var(--accent-soft); }
-.top-btn[aria-pressed="true"] svg { fill: var(--star); stroke: var(--star); }
-.top-btn.full { opacity: .55; }
+/* Must go: the sixth square. Up to five per person; picking one locks the rating at 5. */
+.must-btn b { color: var(--muted); }
+.must-btn[aria-pressed="true"] b, .must-btn[aria-pressed="true"] span { color: var(--pc-on, #fff); opacity: 1; }
+.must-btn.full { opacity: .45; }
 .top-star { color: var(--star); margin-left: 4px; font-size: 12px; }
 .top-line { color: var(--ink) !important; }
 .top-line .top-star { margin: 0 4px 0 0; }
@@ -217,12 +225,13 @@ main { padding: 16px 0 40px; }
 .avg b { font-size: 20px; font-weight: 700; line-height: 1; }
 .avg small { color: var(--muted); font-size: 12.5px; }
 .people { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
-.person { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border-radius: 999px; font-size: 13px; background: var(--surface-2); }
-.person b { display: grid; place-items: center; min-width: 22px; height: 22px; border-radius: 999px; font-size: 12.5px; background: rgba(255,255,255,.35); }
-.person.none { background: transparent; border: 1px dashed var(--line); color: var(--muted); padding: 2px 10px; }
-.person.me { box-shadow: inset 0 0 0 1.5px var(--ink); }
-.s1 { background: var(--s1); color: var(--s1-fg); } .s2 { background: var(--s2); color: var(--s2-fg); } .s3 { background: var(--s3); color: var(--s3-fg); }
-.s4 { background: var(--s4); color: var(--s4-fg); } .s5 { background: var(--s5); color: var(--s5-fg); }
+/* A person's chip: tinted with their color, score in a solid dot of it */
+.person { display: inline-flex; align-items: center; gap: 6px; padding: 2px 3px 2px 10px; border-radius: 999px; font-size: 13px; color: var(--ink);
+  background: color-mix(in srgb, var(--pc, var(--muted)) 14%, var(--surface)); border: 1px solid color-mix(in srgb, var(--pc, var(--muted)) 55%, transparent); }
+.person b { display: grid; place-items: center; min-width: 22px; height: 22px; border-radius: 999px; font-size: 12.5px; background: var(--pc, var(--muted)); color: var(--pc-on, var(--surface)); }
+.person.none { background: transparent; border-style: dashed; color: var(--muted); padding: 2px 10px; }
+.person.none .pdot { margin-right: -1px; }
+.person.me { font-weight: 700; }
 
 /* Badges */
 .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; white-space: nowrap; }
@@ -313,11 +322,13 @@ details.walkins p { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
 .map .maplibregl-canvas { outline: none; }
 .map .maplibregl-ctrl-group { background: #fff; box-shadow: var(--shadow); border-radius: 10px; } /* white in both themes: the zoom icons are dark */
 .map .maplibregl-ctrl-attrib { font-size: 11px; }
-.maplibregl-popup-content { background: var(--surface); color: var(--ink); border-radius: 12px; padding: 12px 14px; box-shadow: 0 8px 28px rgba(0,0,0,.22); font: 14px/1.45 var(--font); }
-.maplibregl-popup-tip { display: none; }
-.maplibregl-popup-close-button { color: var(--muted); font-size: 20px; padding: 2px 8px; border-radius: 0 12px 0 8px; }
-.maplibregl-popup-close-button:hover { background: var(--surface-2); color: var(--ink); }
-.pin-label .maplibregl-popup-content { padding: 4px 9px; border-radius: 8px; font: 600 12.5px var(--font); box-shadow: var(--shadow); }
+/* ".map" prefix: MapLibre's stylesheet loads after this one, so these need to be more specific than its rules */
+.map .maplibregl-popup-content { background: var(--surface); color: var(--ink); border-radius: 12px; padding: 12px 14px; box-shadow: 0 8px 28px rgba(0,0,0,.22); font: 14px/1.45 var(--font); }
+.map .maplibregl-popup-tip { display: none; }
+.map .maplibregl-popup-close-button { color: var(--muted); font-size: 20px; padding: 2px 8px; border-radius: 0 12px 0 8px; }
+.map .maplibregl-popup-close-button:hover { background: var(--surface-2); color: var(--ink); }
+/* Hover labels on pins: inverted (navy on light, light on dark) so they read over any part of the map */
+.map .pin-label .maplibregl-popup-content { padding: 5px 10px; border-radius: 8px; background: var(--ink); color: var(--bg); font: 600 13px var(--font); box-shadow: 0 4px 14px rgba(0,0,0,.3); }
 .pop-wrap { width: 250px; }
 .pop { display: grid; gap: 6px; }
 .pop-img { width: 100%; height: 110px; object-fit: cover; border-radius: 8px; display: block; background: var(--surface-2); }
@@ -367,8 +378,8 @@ details.walkins p { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
 .meters li { display: grid; grid-template-columns: minmax(0, 80px) minmax(0, 1fr) auto auto auto; align-items: center; gap: 8px; }
 .meters .tops { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
 .meters .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.meter { height: 6px; border-radius: 3px; background: var(--accent-soft); overflow: hidden; }
-.meter span { display: block; height: 100%; background: var(--accent); border-radius: 0 3px 3px 0; }
+.meter { height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--pc, var(--accent)) 20%, var(--surface)); overflow: hidden; }
+.meter span { display: block; height: 100%; background: var(--pc, var(--accent)); border-radius: 0 3px 3px 0; }
 .meters b { font-weight: 600; font-variant-numeric: tabular-nums; font-size: 12.5px; }
 .remove-btn { display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 6px; background: none; color: var(--muted); }
 .remove-btn:hover { background: var(--hot-soft); color: var(--hot); }
@@ -457,10 +468,11 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
   .hero-inner { min-height: 230px; }
   .spot { grid-template-columns: 64px minmax(0, 1fr); grid-template-areas: "thumb info" "scores scores"; padding: 14px; gap: 10px 12px; }
   .thumb { width: 64px; height: 64px; font-size: 22px; }
-  .rate-btns { max-width: none; gap: 4px; }
+  .rate-btns { max-width: none; gap: 3px; }
+  .rate-btn { padding: 6px 0; border-radius: 8px; }
   .rate-btn span { display: none; }
   .rate-legend { display: block; }
-  .scores { grid-template-columns: minmax(0, 1fr) 108px; gap: 10px 14px; }
+  .scores { grid-template-columns: minmax(0, 1fr) 92px; gap: 10px 10px; }
   .who span.lbl { display: none; }
   .tab { padding: 10px 7px; }
   .tab .long { display: none; }
@@ -561,6 +573,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
           </button>
         </div>
         <div class="filters">
+          <button class="voter-chip" id="voterChip" type="button"></button>
           <div class="chips" id="listChips" role="group" aria-label="Filters"></div>
           <div class="tools" id="spotTools">
             <select id="sortSel" aria-label="Sort">
@@ -652,6 +665,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
   };
   const SCORE_WORDS = ["", "Skip it", "Meh", "Sure", "Want to", "Love it"];
   const TOP_MAX = 5; // places each person can put in their Top 5 (all equal, no order)
+  const PERSON_COLORS = 8; // --p0 .. --p7
   const TIERS = {
     must:  { name: "Must go",       cls: "t-must",  hint: "In someone's Top 5" },
     def:   { name: "Definitely go", cls: "t-def",   hint: "Average 4 or more and nobody below 3" },
@@ -698,12 +712,20 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
   /* ---------- Small UI helpers ---------- */
 
   let toastTimer;
-  function toast(text) {
+  function toast(text, action) {
     const t = $("#toast");
     t.textContent = text;
+    if (action) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "toast-act";
+      b.textContent = action.label;
+      b.addEventListener("click", () => { t.hidden = true; action.run(); });
+      t.append(b);
+    }
     t.hidden = false;
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { t.hidden = true; }, 3200);
+    toastTimer = setTimeout(() => { t.hidden = true; }, action ? 7000 : 3200);
   }
 
   // A confirm (or, with `value`, a one-line text prompt). Resolves to true / the text, or null if cancelled.
@@ -1082,6 +1104,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     Object.assign(state, {
       tripId: id, plan: null, board: null, boardKey: "", months: [], voters: [], spots: {},
       view: "spots", list: "all", kind: null, sort: "list", unratedOnly: false,
+      votersLoaded: false, greeted: false,
     });
     try { state.me = JSON.parse(lsGet(`tripRanker.me.${id}`) || "null"); } catch (e) { state.me = null; }
     showGate(`<p>Opening trip…</p>`);
@@ -1102,6 +1125,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
       renderHeader();
       if (first || placesChanged) render();
       first = false;
+      greetVoter();
     }, (err) => {
       console.error(err);
       if (err.code === "permission-denied") return tripMissing();
@@ -1118,19 +1142,30 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
   }
 
   function connectVotes() {
-    let askedName = false;
     tripUnsubs.push(votersRef().onSnapshot((snap) => {
-      state.voters = snap.docs.map((d) => ({ id: d.id, name: d.data().name || d.id, scores: cleanScores(d.data().scores), top: cleanTop(d.data().top) }));
+      state.voters = snap.docs.map((d) => ({ id: d.id, name: d.data().name || d.id, scores: cleanScores(d.data().scores), top: cleanTop(d.data().top),
+        color: Number.isInteger(d.data().color) && d.data().color >= 0 && d.data().color < PERSON_COLORS ? d.data().color : null }));
+      assignSlots(state.voters);
       showBanner("");
       renderHeader();
       scheduleRender();
-      if (!askedName && !state.me && state.board) { askedName = true; openWho(); }
+      state.votersLoaded = true;
+      greetVoter();
     }, dbError));
     tripUnsubs.push(spotsRef().onSnapshot((snap) => {
       state.spots = Object.fromEntries(snap.docs.map((d) => [d.id, d.data()]));
       scheduleRender();
     }, dbError));
   }
+  // Once the trip and its voters have both loaded: ask a new visitor for their name,
+  // or remind a returning one which name they're voting as.
+  function greetVoter() {
+    if (state.greeted || !state.board || !state.votersLoaded) return;
+    state.greeted = true;
+    if (!state.me) return openWho();
+    toast(`Voting as ${myVoter()?.name || state.me.name}.`, { label: "Not you?", run: () => openWho() });
+  }
+
   function dbError(err) {
     console.error(err);
     showBanner(err && err.code === "permission-denied"
@@ -1148,6 +1183,25 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     return out;
   }
 
+  // Each person keeps one color slot on a trip, saved on their voter doc so it never shifts when others join.
+  // People from before colors existed get the free slots in name order until their next vote saves one.
+  // Past eight people, the rest share a neutral color (their names still show).
+  function assignSlots(voters) {
+    const used = new Set(voters.map((v) => v.color).filter((c) => c !== null));
+    const free = [...Array(PERSON_COLORS).keys()].filter((i) => !used.has(i));
+    for (const v of voters) v.slot = v.color;
+    for (const v of [...voters].filter((x) => x.color === null).sort((a, b) => a.name.localeCompare(b.name))) v.slot = free.length ? free.shift() : -1;
+  }
+  const freeSlot = () => {
+    const taken = new Set(state.voters.map((v) => v.slot));
+    const i = [...Array(PERSON_COLORS).keys()].find((n) => !taken.has(n));
+    return i === undefined ? null : i;
+  };
+  const personStyle = (v) => (v && v.slot >= 0 ? `--pc: var(--p${v.slot}); --pc-on: var(--p${v.slot}-on)` : "");
+  const pdot = (v) => `<span class="pdot" style="${personStyle(v)}" aria-hidden="true"></span>`;
+  // Saves my provisional color the first time I vote, if I don't have one yet.
+  const colorField = () => { const v = myVoter(); return v && v.color === null && v.slot >= 0 ? { color: v.slot } : {}; };
+
   function cleanTop(raw) {
     return Array.isArray(raw) ? [...new Set(raw.filter((x) => typeof x === "string"))].slice(0, TOP_MAX) : [];
   }
@@ -1163,8 +1217,9 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     if (!state.me) return openWho("Pick your name first, then choose your Top 5.");
     const mine = myTop();
     const on = mine.includes(placeId);
-    if (!on && mine.length >= TOP_MAX) return toast(`You've picked all ${TOP_MAX}. Tap ★ on one of them to free a spot.`);
+    if (!on && mine.length >= TOP_MAX) return toast(`You've picked all ${TOP_MAX} must-gos. Tap ★ Must go on one of them to free a spot.`);
     const update = {
+      ...colorField(),
       name: myVoter()?.name || state.me.name,
       top: on ? FV().arrayRemove(placeId) : FV().arrayUnion(placeId),
       updatedAt: FV().serverTimestamp(),
@@ -1172,16 +1227,17 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     if (!on && myScore(placeId) !== 5) update.scores = { [placeId]: 5 };
     try {
       await votersRef().doc(state.me.id).set(update, { merge: true });
-      if (!on && mine.length + 1 === TOP_MAX) toast(`That's your Top ${TOP_MAX}.`);
+      if (!on && mine.length + 1 === TOP_MAX) toast(`That's all ${TOP_MAX} of your must-gos.`);
     } catch (e) { dbError(e); }
   }
 
   async function setScore(placeId, value) {
     if (!state.me) return openWho("Pick your name first, then tap a score.");
-    if (myTop().includes(placeId)) return toast("It's in your Top 5, so it stays a 5. Take it out of your Top 5 to change the rating.");
+    if (myTop().includes(placeId)) return toast("It's one of your must-gos, so it stays a 5. Tap ★ Must go again to change the rating.");
     const clear = myScore(placeId) === value; // tapping your current score clears it
     try {
       await votersRef().doc(state.me.id).set({
+        ...colorField(),
         name: myVoter()?.name || state.me.name,
         scores: { [placeId]: clear ? FV().delete() : value },
         updatedAt: FV().serverTimestamp(),
@@ -1316,8 +1372,8 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
       const s = scoreOf(v, p.id);
       const me = v.id === state.me?.id ? " me" : "";
       return s
-        ? `<li class="person s${s}${me}" title="${esc(v.name)}: ${s} – ${SCORE_WORDS[s]}"><span>${esc(v.name)}${v.top.includes(p.id) ? " ★" : ""}</span><b>${s}</b></li>`
-        : `<li class="person none${me}" title="${esc(v.name)} hasn't rated this yet">${esc(v.name)} –</li>`;
+        ? `<li class="person${me}" style="${personStyle(v)}" title="${esc(v.name)}: ${s} – ${SCORE_WORDS[s]}"><span>${esc(v.name)}${v.top.includes(p.id) ? " ★" : ""}</span><b>${s}</b></li>`
+        : `<li class="person none${me}" style="${personStyle(v)}" title="${esc(v.name)} hasn't rated this yet">${pdot(v)}${esc(v.name)} –</li>`;
     }).join("")}</ul>`;
   }
   function tierHTML(s) {
@@ -1368,8 +1424,8 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     return `<ul class="votes-list" aria-label="Everyone's scores for ${esc(p.name)}">${rows.map(({ v, s }) => {
       const me = v.id === state.me?.id ? ` class="me"` : "";
       return s
-        ? `<li${me} title="${esc(v.name)}: ${s} – ${SCORE_WORDS[s]}"><span class="nm">${esc(v.name)}${v.top.includes(p.id) ? topStar(v) : ""}</span><b class="sc s${s}">${s}</b></li>`
-        : `<li${me} title="${esc(v.name)} hasn't rated this yet"><span class="nm">${esc(v.name)}${v.top.includes(p.id) ? topStar(v) : ""}</span><span class="sc none">–</span></li>`;
+        ? `<li${me} style="${personStyle(v)}" title="${esc(v.name)}: ${s} – ${SCORE_WORDS[s]}"><span class="nm">${pdot(v)}${esc(v.name)}${me ? ' <span class="you">(you)</span>' : ""}${v.top.includes(p.id) ? topStar(v) : ""}</span><b class="sc">${s}</b></li>`
+        : `<li${me} style="${personStyle(v)}" title="${esc(v.name)} hasn't rated this yet"><span class="nm">${pdot(v)}${esc(v.name)}${me ? ' <span class="you">(you)</span>' : ""}${v.top.includes(p.id) ? topStar(v) : ""}</span><span class="sc none">–</span></li>`;
     }).join("")}</ul>`;
   }
 
@@ -1378,14 +1434,18 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
   function scoresHTML(p) {
     const mine = myScore(p.id);
     const locked = myTop().includes(p.id); // a Top 5 pick is a 5
+    const full = !locked && myTop().length >= TOP_MAX;
     const btns = [1, 2, 3, 4, 5].map((v) =>
-      `<button type="button" class="rate-btn${mine === v ? ` s${v}` : ""}" data-rate="${v}" aria-pressed="${mine === v}"${locked ? " disabled" : ""} aria-label="${v} – ${SCORE_WORDS[v]}"><b>${v}</b><span>${SCORE_WORDS[v]}</span></button>`).join("");
+      `<button type="button" class="rate-btn" data-rate="${v}" aria-pressed="${mine === v}"${locked ? " disabled" : ""} aria-label="${v} – ${SCORE_WORDS[v]}"><b>${v}</b><span>${SCORE_WORDS[v]}</span></button>`).join("")
+      + `<button type="button" class="rate-btn must-btn${full ? " full" : ""}" data-top aria-pressed="${locked}"
+          aria-label="Must go: one of your ${TOP_MAX} must-gos${locked ? " (selected)" : ""}"
+          title="${locked ? "One of your must-gos, so your rating is locked at 5. Tap to take it out." : full ? `You've picked all ${TOP_MAX} must-gos. Remove one first.` : `Must go: one of your ${TOP_MAX} must-gos (rates it 5)`}"><b>★</b><span>Must go</span></button>`;
     return `
-      <div class="rate">
-        <span class="row-label">${!state.me ? "Rate it (pick your name first)" : locked ? "Your rating · locked at 5 (Top 5)" : "Your rating"}</span>
+      <div class="rate" style="${personStyle(myVoter())}">
+        <span class="row-label">${!state.me ? "Rate it (pick your name first)"
+          : `Rating as <span class="as-name">${esc(myVoter()?.name || state.me.name)}</span>${locked ? " · locked at 5 (must go)" : ""} · <button type="button" class="not-you" data-switch>Not you?</button>`}</span>
         <div class="rate-btns" role="group" aria-label="Your rating for ${esc(p.name)}">${btns}</div>
-        <p class="rate-legend">1 skip it · 3 sure · 5 love it</p>
-        ${topBtnHTML(p)}
+        <p class="rate-legend">1 skip it · 3 sure · 5 love it · ★ must go</p>
       </div>
       <div class="group-col">
         ${groupHeadHTML(stats(p))}
@@ -1393,13 +1453,6 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
       </div>`;
   }
 
-  const STAR_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4-4.7-4.4 6.4-.8z"/></svg>`;
-  function topBtnHTML(p) {
-    const on = myTop().includes(p.id);
-    const full = !on && myTop().length >= TOP_MAX;
-    return `<button type="button" class="top-btn${full ? " full" : ""}" data-top aria-pressed="${on}"
-      title="${on ? "In your Top 5, so your rating is locked at 5. Tap to take it out." : full ? "You've picked all 5. Remove one first." : "Must go: add it to your Top 5 (rates it 5)"}">${STAR_SVG}${on ? "In my Top 5" : "Add to my Top 5"}</button>`;
-  }
   const topStar = (v) => `<span class="top-star" title="In ${esc(v.name)}'s Top 5" aria-label="Top 5">★</span>`;
 
   function cardHTML(p) {
@@ -1424,7 +1477,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
 
   function progressText() {
     const rated = places().filter((p) => myScore(p.id)).length;
-    return `You've rated <b>${rated}</b> of ${places().length} · <span class="top-star" style="margin:0">★</span> Top 5: <b>${myTop().length}</b> of ${TOP_MAX}`;
+    return `You've rated <b>${rated}</b> of ${places().length} · <span class="top-star" style="margin:0">★</span> Must go: <b>${myTop().length}</b> of ${TOP_MAX}`;
   }
 
   function renderSpots() {
@@ -1481,7 +1534,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     if (!state.voters.length) return "";
     return `<ul class="voted">${orderedVoters().map((v) => {
       const n = places().filter((p) => scoreOf(v, p.id)).length;
-      return `<li class="${n === total ? "done" : ""}">${esc(v.name)} · ${n === total ? "✓ all rated" : `${n}/${total}`}</li>`;
+      return `<li class="${n === total ? "done" : ""}" style="${personStyle(v)}">${pdot(v)} ${esc(v.name)} · ${n === total ? "✓ all rated" : `${n}/${total}`}</li>`;
     }).join("")}</ul>`;
   }
 
@@ -1804,7 +1857,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
       const remove = state.isPlanner
         ? `<button class="remove-btn" type="button" data-remove-voter="${esc(v.id)}" title="Remove ${esc(v.name)} and their votes" aria-label="Remove ${esc(v.name)} and their votes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg></button>`
         : "<span></span>";
-      return `<li><span class="nm" title="${esc(v.name)}">${esc(v.name)}</span><span class="meter" role="img" aria-label="${esc(v.name)} rated ${n} of ${all.length}"><span style="width:${(n / all.length) * 100}%"></span></span><b>${n}/${all.length}</b><span class="tops" title="${esc(v.name)} has picked ${v.top.length} of ${TOP_MAX} Top 5 places"><span class="top-star" style="margin:0">★</span>${v.top.length}/${TOP_MAX}</span>${remove}</li>`;
+      return `<li style="${personStyle(v)}"><span class="nm" title="${esc(v.name)}">${pdot(v)}${esc(v.name)}</span><span class="meter" role="img" aria-label="${esc(v.name)} rated ${n} of ${all.length}"><span style="width:${(n / all.length) * 100}%"></span></span><b>${n}/${all.length}</b><span class="tops" title="${esc(v.name)} has picked ${v.top.length} of ${TOP_MAX} Top 5 places"><span class="top-star" style="margin:0">★</span>${v.top.length}/${TOP_MAX}</span>${remove}</li>`;
     }).join("");
 
     $("#side").innerHTML = `
@@ -1875,6 +1928,13 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     who.hidden = !state.board;
     who.classList.toggle("empty", !me);
     who.innerHTML = me ? `<span class="lbl">Voting as</span> <b>${esc(me.name)}</b>` : "Pick your name";
+    const chip = $("#voterChip");
+    chip.hidden = !state.board;
+    chip.setAttribute("style", personStyle(myVoter()));
+    chip.classList.toggle("empty", !me);
+    chip.title = me ? `Voting as ${me.name}. Tap to switch.` : "Pick your name to start voting";
+    chip.setAttribute("aria-label", me ? `Voting as ${me.name}. Switch voter` : "Pick your name");
+    chip.innerHTML = me ? `<span class="av" aria-hidden="true">${esc(me.name.trim().charAt(0).toUpperCase())}</span><span class="nm">${esc(me.name)}</span>` : "Pick your name";
     $("#foot").textContent = "Places come from the group's Wanderlog trip.";
   }
   setInterval(() => { if (state.tripId && state.plan) renderHeader(); }, 60_000);
@@ -1958,7 +2018,8 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
   function openWho(hint) {
     const dlg = $("#whoDlg");
     $("#whoHint").textContent = hint || "Pick your name. Your scores are saved under it, so you can open this link on any device and pick up where you left off.";
-    $("#whoNames").innerHTML = orderedVoters().map((v) => `<button type="button" data-voter="${esc(v.id)}">${esc(v.name)}</button>`).join("");
+    $("#whoNames").innerHTML = orderedVoters().map((v) => `<button type="button" data-voter="${esc(v.id)}" aria-current="${v.id === state.me?.id}" style="${personStyle(v)}">${pdot(v)}${esc(v.name)}</button>`).join("");
+    if (!hint && state.me) $("#whoHint").textContent = `You're voting as ${myVoter()?.name || state.me.name}. Tap a different name to switch, or add yours.`;
     const first = (state.user?.displayName || "").split(" ")[0];
     $("#whoInput").value = first && !state.voters.some((v) => v.id === slugify(first)) ? first : "";
     if (!dlg.open) dlg.showModal();
@@ -1976,12 +2037,14 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     const existing = state.voters.find((v) => v.id === id);
     if (existing) return chooseVoter(existing);
     try {
-      await votersRef().doc(id).set({ name, scores: {}, updatedAt: FV().serverTimestamp() }, { merge: true });
+      const color = freeSlot();
+      await votersRef().doc(id).set({ name, scores: {}, ...(color === null ? {} : { color }), updatedAt: FV().serverTimestamp() }, { merge: true });
       chooseVoter({ id, name });
     } catch (err) { dbError(err); $("#whoDlg").close(); }
   });
   $("#whoLater").addEventListener("click", () => $("#whoDlg").close());
   $("#whoBtn").addEventListener("click", () => openWho());
+  $("#voterChip").addEventListener("click", () => openWho());
   $("#shareBtn").addEventListener("click", () => copyLink(state.tripId, state.plan?.title));
 
   /* ---------- Events ---------- */
@@ -2025,6 +2088,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     if (rate) return setScore(rate.closest("[data-id]").dataset.id, Number(rate.dataset.rate));
     const top = e.target.closest("[data-top]");
     if (top) return toggleTop(top.closest("[data-id]").dataset.id);
+    if (e.target.closest("[data-switch]")) return openWho();
     const go = e.target.closest("[data-goto]");
     if (go) return goToSpot(go.dataset.goto);
   });
