@@ -1,7 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Trip Ranker (jonchao.github.io/trip-ranker).
+    // POI Planner (jonchao.github.io/poi-planner).
     // Planners sign in with Google and must be listed in team/main. They see every trip and create new ones.
     // Everyone else signs in anonymously and can open a trip only by knowing its long random id (the trip link).
     // The sync job (GitHub Actions, service account) bypasses these rules: it imports places from Wanderlog

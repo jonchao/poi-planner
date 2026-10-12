@@ -1,8 +1,8 @@
 {
-  "name": "trip-ranker",
+  "name": "poi-planner",
   "private": true,
   "type": "module",
-  "description": "Imports Wanderlog trips into Firestore for the Trip Ranker site",
+  "description": "Imports Wanderlog trips into Firestore for the POI Planner site",
   "scripts": {
     "sync": "node scripts/sync-wanderlog.mjs"
   },

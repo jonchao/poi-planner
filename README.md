@@ -1,9 +1,9 @@
-# Trip Ranker
+# POI Planner
 
 Plan trips with a group: pull each trip's places from Wanderlog, have everyone rate them, and see what the
 group most wants to do and what needs a reservation.
 
-Live at <https://jonchao.github.io/trip-ranker/>.
+Live at <https://jonchao.github.io/poi-planner/>.
 
 ## Using it
 
@@ -38,14 +38,14 @@ The header shows when the trip last refreshed from Wanderlog.
 - The browser can't read Wanderlog directly, so a GitHub Actions job (`.github/workflows/sync.yml`, every 10 minutes)
   imports new trips and refreshes the rest hourly. It runs `scripts/sync-wanderlog.mjs`, which uses
   `scripts/wanderlog.mjs` to read a trip. Hotels and flights are never copied. Run it on demand from the
-  [Actions tab](https://github.com/jonchao/trip-ranker/actions/workflows/sync.yml).
+  [Actions tab](https://github.com/jonchao/poi-planner/actions/workflows/sync.yml).
 
 ## Setup (once)
 
 1. Firebase console → Authentication → Sign-in method: enable **Anonymous** and **Google**. Under Settings →
    Authorized domains, add `jonchao.github.io`.
 2. Firebase console → Project settings → Service accounts → Generate new private key, then:
-   `gh secret set FIREBASE_SERVICE_ACCOUNT --repo jonchao/trip-ranker < key.json` and delete the file.
-3. `gh secret set PLANNER_OWNER --repo jonchao/trip-ranker` with the owner's Google email. The first sync run
+   `gh secret set FIREBASE_SERVICE_ACCOUNT --repo jonchao/poi-planner < key.json` and delete the file.
+3. `gh secret set PLANNER_OWNER --repo jonchao/poi-planner` with the owner's Google email. The first sync run
    creates the planner list from it.
 4. Publish `firestore.rules`.

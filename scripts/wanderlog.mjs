@@ -14,7 +14,7 @@ export function wanderlogKey(link) {
 export async function fetchTrip(key) {
   if (!key) throw new Error("That doesn't look like a Wanderlog trip link");
   const url = `https://wanderlog.com/api/tripPlans/${key}?clientSchemaVersion=2&registerView=false`;
-  const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (trip-ranker sync)", Accept: "application/json" } });
+  const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (poi-planner sync)", Accept: "application/json" } });
   if (res.status === 404) throw new Error("Wanderlog couldn't find that trip. Check the link is shared.");
   if (!res.ok) throw new Error(`Wanderlog answered ${res.status}`);
   const json = await res.json();

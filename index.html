@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
-<title>Trip Ranker</title>
+<title>POI Planner</title>
 <script>try { var t = localStorage.getItem("theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}</script>
 <script src="app-switcher.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -44,7 +44,8 @@
   --s4: #ea8a1f; --s4-fg: #241400;
   --s5: #c2410c; --s5-fg: #ffffff;
   /* Group verdict, an ordered scale: rosa steps for the "go" tiers, neutrals for skip / not enough votes */
-  --v-def: #b8125a; --v-prob: #e0679a; --v-maybe: #f3b9d1; --v-skip: #b3aa9e; --v-wait: #e6ddcf;
+  --v-must: #6d0a36; --v-def: #b8125a; --v-prob: #e0679a; --v-maybe: #f3b9d1; --v-skip: #b3aa9e; --v-wait: #e6ddcf;
+  --star: #d97706;
   --shadow: 0 1px 2px rgba(32,27,22,.05), 0 6px 20px rgba(32,27,22,.05);
   --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display: "Fraunces", Georgia, serif;
@@ -57,7 +58,8 @@
     --ok: #63d394; --ok-soft: #173323; --warn: #f2bb55; --warn-soft: #3a2c10; --hot: #ff8f80; --hot-soft: #3d1a16;
     --s1: #2f2922; --s1-fg: #b3a99c; --s2: #4a3720; --s2-fg: #f3d9b0; --s3: #7a5212; --s3-fg: #ffe9c4;
     --s4: #c46f12; --s4-fg: #1a0f00; --s5: #f08a2c; --s5-fg: #1a0f00;
-    --v-def: #ff7fb2; --v-prob: #c4467d; --v-maybe: #6b2c48; --v-skip: #6f665b; --v-wait: #3a332b;
+    --v-must: #ffc4dd; --v-def: #ff7fb2; --v-prob: #c4467d; --v-maybe: #6b2c48; --v-skip: #6f665b; --v-wait: #3a332b;
+    --star: #fbbf24;
     --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
     color-scheme: dark;
   }
@@ -68,7 +70,8 @@
   --ok: #63d394; --ok-soft: #173323; --warn: #f2bb55; --warn-soft: #3a2c10; --hot: #ff8f80; --hot-soft: #3d1a16;
   --s1: #2f2922; --s1-fg: #b3a99c; --s2: #4a3720; --s2-fg: #f3d9b0; --s3: #7a5212; --s3-fg: #ffe9c4;
   --s4: #c46f12; --s4-fg: #1a0f00; --s5: #f08a2c; --s5-fg: #1a0f00;
-  --v-def: #ff7fb2; --v-prob: #c4467d; --v-maybe: #6b2c48; --v-skip: #6f665b; --v-wait: #3a332b;
+  --v-must: #ffc4dd; --v-def: #ff7fb2; --v-prob: #c4467d; --v-maybe: #6b2c48; --v-skip: #6f665b; --v-wait: #3a332b;
+  --star: #fbbf24;
   --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
   color-scheme: dark;
 }
@@ -195,6 +198,16 @@ main { padding: 16px 0 40px; }
 .rate-btn:active { transform: scale(.96); }
 .rate-btn[aria-pressed="true"] { border-color: transparent; }
 .rate-btn[aria-pressed="true"] span { color: inherit; opacity: .85; }
+/* Top 5: each person's must-gos (up to five, all equal) */
+.top-btn { justify-self: start; display: inline-flex; align-items: center; gap: 6px; margin-top: 2px; padding: 6px 12px 6px 9px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; font-size: 13.5px; font-weight: 600; color: var(--muted); }
+.top-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.top-btn:hover { border-color: var(--muted); color: var(--ink); }
+.top-btn[aria-pressed="true"] { border-color: var(--star); color: var(--ink); background: var(--accent-soft); }
+.top-btn[aria-pressed="true"] svg { fill: var(--star); stroke: var(--star); }
+.top-btn.full { opacity: .55; }
+.top-star { color: var(--star); margin-left: 4px; font-size: 12px; }
+.top-line { color: var(--ink) !important; }
+.top-line .top-star { margin: 0 4px 0 0; }
 .avg { display: inline-flex; align-items: baseline; gap: 4px; }
 .avg b { font-size: 20px; font-weight: 700; line-height: 1; }
 .avg small { color: var(--muted); font-size: 12.5px; }
@@ -214,9 +227,11 @@ main { padding: 16px 0 40px; }
 .booked-b { background: var(--ok-soft); color: var(--ok); }
 .closed-b { background: var(--ink); color: var(--bg); }
 .tier { display: inline-flex; padding: 2px 9px; border-radius: 999px; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.t-must { background: var(--v-must); color: #fff; }
+.t-must::before { content: "★ "; }
 .t-def { background: var(--rosa); color: #fff; }
-:root[data-theme="dark"] .t-def { color: #1a0710; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .t-def { color: #1a0710; } }
+:root[data-theme="dark"] .t-def, :root[data-theme="dark"] .t-must { color: #1a0710; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .t-def, :root:not([data-theme="light"]) .t-must { color: #1a0710; } }
 .t-prob { background: var(--rosa-soft); color: var(--rosa); }
 .t-maybe { background: var(--surface-2); color: var(--ink); }
 .t-skip { background: transparent; color: var(--muted); border: 1px solid var(--line); }
@@ -293,6 +308,8 @@ details.walkins p { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
 .map-legend .dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--line); }
 .map-legend .dot.wait { background: var(--surface); border: 1.5px dashed var(--muted); box-shadow: none; }
 .leaflet-container { font: inherit; }
+.map .leaflet-tile-pane { filter: saturate(.45) contrast(.95); }
+.map.dark-tiles .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) saturate(.35) brightness(.9) contrast(.9); }
 .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--surface); color: var(--ink); box-shadow: 0 8px 28px rgba(0,0,0,.25); }
 .leaflet-popup-content { margin: 12px 14px; width: 250px !important; }
 .leaflet-container a.leaflet-popup-close-button { color: var(--muted); }
@@ -339,10 +356,11 @@ details.walkins p { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
 .legend li { display: flex; align-items: center; gap: 8px; }
 .legend .sw { width: 10px; height: 10px; border-radius: 3px; flex: none; }
 .legend b { margin-left: auto; font-variant-numeric: tabular-nums; }
-.sw-def { background: var(--v-def); } .sw-prob { background: var(--v-prob); } .sw-maybe { background: var(--v-maybe); }
+.sw-must { background: var(--v-must); } .sw-def { background: var(--v-def); } .sw-prob { background: var(--v-prob); } .sw-maybe { background: var(--v-maybe); }
 .sw-skip { background: var(--v-skip); } .sw-wait { background: var(--v-wait); }
 .meters { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; font-size: 13.5px; }
-.meters li { display: grid; grid-template-columns: minmax(0, 88px) minmax(0, 1fr) auto auto; align-items: center; gap: 10px; }
+.meters li { display: grid; grid-template-columns: minmax(0, 80px) minmax(0, 1fr) auto auto auto; align-items: center; gap: 8px; }
+.meters .tops { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
 .meters .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .meter { height: 6px; border-radius: 3px; background: var(--accent-soft); overflow: hidden; }
 .meter span { display: block; height: 100%; background: var(--accent); border-radius: 0 3px 3px 0; }
@@ -419,6 +437,9 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
 .dlg label { display: grid; gap: 4px; margin-bottom: 12px; font-size: 13.5px; font-weight: 600; }
 .dlg label input { width: 100%; font-weight: 400; }
 .dlg-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.share-row { display: flex; gap: 8px; }
+.share-row input { flex: 1; min-width: 0; border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 10px 12px; font-size: 13.5px; color: var(--ink); }
+#shareCopy { min-width: 96px; }
 .form-error { margin: 10px 0 0 !important; color: var(--hot) !important; font-size: 13.5px; }
 .names { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 .names button { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 8px 14px; font-weight: 600; }
@@ -470,7 +491,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
 <div id="home" hidden>
   <header class="shell home-top">
     <div class="titles">
-      <p class="eyebrow">Trip Ranker</p>
+      <p class="eyebrow">POI Planner</p>
       <h1>Your trips</h1>
       <p class="sub" id="homeSub"></p>
     </div>
@@ -580,6 +601,17 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
   </form>
 </dialog>
 
+<!-- Share a trip: the link with a one-tap Copy button -->
+<dialog class="dlg" id="shareDlg" aria-labelledby="shareTitle">
+  <h2 id="shareTitle">Share this trip</h2>
+  <p>Anyone with this link can view the trip and vote. No account needed.</p>
+  <div class="share-row">
+    <input id="shareUrl" readonly aria-label="Trip link">
+    <button class="btn" id="shareCopy" type="button">Copy</button>
+  </div>
+  <div class="dlg-actions" style="margin-top:14px"><button class="btn ghost" type="button" data-close>Done</button></div>
+</dialog>
+
 <!-- Confirm / ask: filled in by askDialog() -->
 <dialog class="dlg" id="askDlg" aria-labelledby="askTitle">
   <h2 id="askTitle"></h2>
@@ -601,7 +633,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script>
 (() => {
-  // Trip Ranker's own Firebase project (rules: firestore.rules).
+  // POI Planner's own Firebase project (rules: firestore.rules).
   //   team/main                  who can plan (Google sign-in)
   //   plans/{tripId}             a trip and its places, imported from Wanderlog by the sync job
   //   planSources/{tripId}       the trip's Wanderlog link (planners only)
@@ -614,15 +646,19 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
     messagingSenderId: "225752772584",
     appId: "1:225752772584:web:a091a48cdcb78884affe5d"
   };
-  const SCORE_WORDS = ["", "Skip it", "Meh", "Sure", "Want to", "Must go"];
+  const SCORE_WORDS = ["", "Skip it", "Meh", "Sure", "Want to", "Love it"];
+  const TOP_MAX = 5; // places each person can put in their Top 5 (all equal, no order)
   const TIERS = {
+    must:  { name: "Must go",       cls: "t-must",  hint: "In someone's Top 5" },
     def:   { name: "Definitely go", cls: "t-def",   hint: "Average 4 or more and nobody below 3" },
     prob:  { name: "Probably",      cls: "t-prob",  hint: "Average 3.25 or more" },
     maybe: { name: "Maybe",         cls: "t-maybe", hint: "Average 2.5 or more" },
     skip:  { name: "Skip",          cls: "t-skip",  hint: "Average below 2.5" },
     wait:  { name: "Needs votes",   cls: "t-wait",  hint: "Fewer than half the group has rated it" },
   };
-  const TIER_ORDER = ["def", "prob", "maybe", "skip", "wait"];
+  const TIER_ORDER = ["must", "def", "prob", "maybe", "skip", "wait"];
+  const GOING = ["must", "def"];           // counted as "Go" in the summary
+  const WANTED = ["must", "def", "prob"];  // what the group wants (reservations to make first)
   // Place types for the summary (set by the sync script from Wanderlog's categories).
   const KINDS = {
     restaurant: "Restaurants", cafe: "Cafés & bakeries", bar: "Bars", sight: "Museums & sights",
@@ -703,15 +739,29 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
   }
   document.querySelectorAll("dialog [data-close]").forEach((b) => b.addEventListener("click", () => b.closest("dialog").close()));
 
-  async function copyLink(id, title) {
-    const url = `${location.origin}${location.pathname}#trip/${id}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      toast(`Link to ${title || "this trip"} copied. Anyone with it can view and vote.`);
-    } catch (e) {
-      await askDialog({ title: "Trip link", body: "Copy this link to share the trip.", value: url, confirm: "Done" });
-    }
+  function copyLink(id, title) {
+    $("#shareTitle").textContent = title ? `Share ${title}` : "Share this trip";
+    $("#shareUrl").value = `${location.origin}${location.pathname}#trip/${id}`;
+    $("#shareCopy").textContent = "Copy";
+    $("#shareDlg").showModal();
+    $("#shareCopy").focus();
   }
+  $("#shareCopy").addEventListener("click", async () => {
+    const input = $("#shareUrl");
+    let ok = false;
+    try {
+      await navigator.clipboard.writeText(input.value);
+      ok = true;
+    } catch (e) {
+      // Some browsers block the clipboard API; copying the selected text still works there.
+      input.focus();
+      input.select();
+      try { ok = document.execCommand("copy"); } catch (e2) { ok = false; }
+    }
+    $("#shareCopy").textContent = ok ? "Copied ✓" : "Select & copy";
+    if (!ok) { input.focus(); input.select(); }
+  });
+  $("#shareUrl").addEventListener("focus", (e) => e.target.select());
 
   function showOnly(which) {
     $("#gate").hidden = which !== "gate";
@@ -818,7 +868,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
     const trips = rememberedTrips();
     const email = state.user && !state.user.isAnonymous ? state.user.email : null;
     showGate(`
-      <p class="eyebrow">Trip Ranker</p>
+      <p class="eyebrow">POI Planner</p>
       <h1>Plan trips with your group</h1>
       ${email
         ? `<p>${esc(email)} isn't on the planner list yet. Ask the trip owner to add you under Co-planners.</p>
@@ -854,7 +904,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
   function openHome() {
     stopTrip();
     if (!state.user || state.user.isAnonymous || !state.isPlanner) return showSignIn();
-    document.title = "Trip Ranker";
+    document.title = "POI Planner";
     showOnly("home");
     renderHome();
     if (homeUnsubs.length) return;
@@ -1058,15 +1108,15 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
 
   function tripMissing() {
     stopTrip();
-    showGate(`<p class="eyebrow">Trip Ranker</p><h1>Trip not found</h1>
+    showGate(`<p class="eyebrow">POI Planner</p><h1>Trip not found</h1>
       <p>This trip was deleted, or the link is incomplete. Ask whoever shared it for a fresh link.</p>
-      <a class="btn ghost" href="#">Go to Trip Ranker</a>`);
+      <a class="btn ghost" href="#">Go to POI Planner</a>`);
   }
 
   function connectVotes() {
     let askedName = false;
     tripUnsubs.push(votersRef().onSnapshot((snap) => {
-      state.voters = snap.docs.map((d) => ({ id: d.id, name: d.data().name || d.id, scores: cleanScores(d.data().scores) }));
+      state.voters = snap.docs.map((d) => ({ id: d.id, name: d.data().name || d.id, scores: cleanScores(d.data().scores), top: cleanTop(d.data().top) }));
       showBanner("");
       renderHeader();
       scheduleRender();
@@ -1094,8 +1144,31 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
     return out;
   }
 
+  function cleanTop(raw) {
+    return Array.isArray(raw) ? [...new Set(raw.filter((x) => typeof x === "string"))].slice(0, TOP_MAX) : [];
+  }
+
   const myVoter = () => state.voters.find((v) => v.id === state.me?.id);
   const myScore = (id) => myVoter()?.scores[id] || 0;
+  const myTop = () => myVoter()?.top || [];
+
+  // Add or remove a place from your Top 5. Adding one also rates it 5.
+  async function toggleTop(placeId) {
+    if (!state.me) return openWho("Pick your name first, then choose your Top 5.");
+    const mine = myTop();
+    const on = mine.includes(placeId);
+    if (!on && mine.length >= TOP_MAX) return toast(`You've picked all ${TOP_MAX}. Tap ★ on one of them to free a spot.`);
+    const update = {
+      name: myVoter()?.name || state.me.name,
+      top: on ? FV().arrayRemove(placeId) : FV().arrayUnion(placeId),
+      updatedAt: FV().serverTimestamp(),
+    };
+    if (!on && myScore(placeId) !== 5) update.scores = { [placeId]: 5 };
+    try {
+      await votersRef().doc(state.me.id).set(update, { merge: true });
+      if (!on && mine.length + 1 === TOP_MAX) toast(`That's your Top ${TOP_MAX}.`);
+    } catch (e) { dbError(e); }
+  }
 
   async function setScore(placeId, value) {
     if (!state.me) return openWho("Pick your name first, then tap a score.");
@@ -1150,15 +1223,17 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
     const avg = count ? votes.reduce((a, b) => a + b, 0) / count : 0;
     const min = count ? Math.min(...votes) : 0, max = count ? Math.max(...votes) : 0;
     const fives = votes.filter((v) => v === 5).length;
+    const topBy = state.voters.filter((v) => v.top.includes(p.id));
     let tier = "wait";
     if (count && count >= Math.max(1, Math.ceil(n / 2))) {
       tier = avg >= 4 && min >= 3 ? "def" : avg >= 3.25 ? "prob" : avg >= 2.5 ? "maybe" : "skip";
     }
-    return { n, count, avg, min, max, fives, tier, split: count >= 2 && max - min >= 3 };
+    if (topBy.length) tier = "must";
+    return { n, count, avg, min, max, fives, tier, topBy, tops: topBy.length, split: count >= 2 && max - min >= 3 };
   }
   const byGroup = (a, b) => {
     const sa = stats(a), sb = stats(b);
-    return TIER_ORDER.indexOf(sa.tier) - TIER_ORDER.indexOf(sb.tier) || sb.avg - sa.avg || sb.fives - sa.fives || sb.count - sa.count || a.name.localeCompare(b.name);
+    return TIER_ORDER.indexOf(sa.tier) - TIER_ORDER.indexOf(sb.tier) || sb.tops - sa.tops || sb.avg - sa.avg || sb.fives - sa.fives || sb.count - sa.count || a.name.localeCompare(b.name);
   };
 
   // Months the trip covers (0-11). Without dates, every month counts.
@@ -1234,7 +1309,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
       const s = v.scores[p.id];
       const me = v.id === state.me?.id ? " me" : "";
       return s
-        ? `<li class="person s${s}${me}" title="${esc(v.name)}: ${s} – ${SCORE_WORDS[s]}"><span>${esc(v.name)}</span><b>${s}</b></li>`
+        ? `<li class="person s${s}${me}" title="${esc(v.name)}: ${s} – ${SCORE_WORDS[s]}"><span>${esc(v.name)}${v.top.includes(p.id) ? " ★" : ""}</span><b>${s}</b></li>`
         : `<li class="person none${me}" title="${esc(v.name)} hasn't rated this yet">${esc(v.name)} –</li>`;
     }).join("")}</ul>`;
   }
@@ -1282,12 +1357,12 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
     if (!state.voters.length) return `<p class="votes-list empty">No one has joined yet</p>`;
     const rows = state.voters
       .map((v) => ({ v, s: v.scores[p.id] || 0 }))
-      .sort((a, b) => b.s - a.s || (a.v.id === state.me?.id ? -1 : b.v.id === state.me?.id ? 1 : a.v.name.localeCompare(b.v.name)));
+      .sort((a, b) => b.s - a.s || b.v.top.includes(p.id) - a.v.top.includes(p.id) || (a.v.id === state.me?.id ? -1 : b.v.id === state.me?.id ? 1 : a.v.name.localeCompare(b.v.name)));
     return `<ul class="votes-list" aria-label="Everyone's scores for ${esc(p.name)}">${rows.map(({ v, s }) => {
       const me = v.id === state.me?.id ? ` class="me"` : "";
       return s
-        ? `<li${me} title="${esc(v.name)}: ${s} – ${SCORE_WORDS[s]}"><span class="nm">${esc(v.name)}</span><b class="sc s${s}">${s}</b></li>`
-        : `<li${me} title="${esc(v.name)} hasn't rated this yet"><span class="nm">${esc(v.name)}</span><span class="sc none">–</span></li>`;
+        ? `<li${me} title="${esc(v.name)}: ${s} – ${SCORE_WORDS[s]}"><span class="nm">${esc(v.name)}${v.top.includes(p.id) ? topStar(v) : ""}</span><b class="sc s${s}">${s}</b></li>`
+        : `<li${me} title="${esc(v.name)} hasn't rated this yet"><span class="nm">${esc(v.name)}${v.top.includes(p.id) ? topStar(v) : ""}</span><span class="sc none">–</span></li>`;
     }).join("")}</ul>`;
   }
 
@@ -1301,13 +1376,23 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
       <div class="rate">
         <span class="row-label">${state.me ? "Your rating" : "Rate it (pick your name first)"}</span>
         <div class="rate-btns" role="group" aria-label="Your rating for ${esc(p.name)}">${btns}</div>
-        <p class="rate-legend">1 skip it · 3 sure · 5 must go</p>
+        <p class="rate-legend">1 skip it · 3 sure · 5 love it</p>
+        ${topBtnHTML(p)}
       </div>
       <div class="group-col">
         ${groupHeadHTML(stats(p))}
         ${votesListHTML(p)}
       </div>`;
   }
+
+  const STAR_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4-4.7-4.4 6.4-.8z"/></svg>`;
+  function topBtnHTML(p) {
+    const on = myTop().includes(p.id);
+    const full = !on && myTop().length >= TOP_MAX;
+    return `<button type="button" class="top-btn${full ? " full" : ""}" data-top aria-pressed="${on}"
+      title="${on ? "In your Top 5. Tap to remove it." : full ? "You've picked all 5. Remove one first." : "Must go: add it to your Top 5"}">${STAR_SVG}${on ? "In my Top 5" : "Add to my Top 5"}</button>`;
+  }
+  const topStar = (v) => `<span class="top-star" title="In ${esc(v.name)}'s Top 5" aria-label="Top 5">★</span>`;
 
   function cardHTML(p) {
     const blurb = p.blurb || (p.notes.length ? "" : p.category ? `${p.category}.` : "");
@@ -1329,14 +1414,19 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
       </article>`;
   }
 
+  function progressText() {
+    const rated = places().filter((p) => myScore(p.id)).length;
+    return `You've rated <b>${rated}</b> of ${places().length} · <span class="top-star" style="margin:0">★</span> Top 5: <b>${myTop().length}</b> of ${TOP_MAX}`;
+  }
+
   function renderSpots() {
     const all = places();
     const rated = all.filter((p) => myScore(p.id)).length;
     let shown = all.filter(inList);
     if (state.unratedOnly) shown = shown.filter((p) => !myScore(p.id));
     const progress = state.me
-      ? `<div class="progress" id="progress"><span>You've rated <b>${rated}</b> of ${all.length}</span><div class="track"><div class="fill" style="width:${(rated / all.length) * 100}%"></div></div></div>`
-      : `<p class="intro">Tap <b>${state.voters.length ? "Pick your name" : "Join"}</b> at the top to start rating. Scores: 1 skip it · 2 meh · 3 sure · 4 want to · 5 must go.</p>`;
+      ? `<div class="progress" id="progress"><span>${progressText()}</span><div class="track"><div class="fill" style="width:${(rated / all.length) * 100}%"></div></div></div>`
+      : `<p class="intro">Tap <b>${state.voters.length ? "Pick your name" : "Join"}</b> at the top to start rating. Scores: 1 skip it · 2 meh · 3 sure · 4 want to · 5 love it. Pick up to ${TOP_MAX} must-gos for your Top 5.</p>`;
 
     if (!shown.length) {
       return progress + `<div class="empty-note">${state.unratedOnly ? "You've rated everything here. Nice." : "Nothing in this list yet."}</div>`;
@@ -1369,7 +1459,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
     const prog = $("#progress");
     if (prog && state.me) {
       const rated = places().filter((p) => myScore(p.id)).length;
-      $("span", prog).innerHTML = `You've rated <b>${rated}</b> of ${places().length}`;
+      $("span", prog).innerHTML = progressText();
       $(".fill", prog).style.width = `${(rated / places().length) * 100}%`;
     } else if (!!prog !== !!state.me) {
       render();
@@ -1389,7 +1479,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
 
   function renderPicks() {
     const shown = places().filter(inList).sort(byGroup);
-    if (!state.voters.length) return `<div class="empty-note">No votes yet. Once people rate spots, they're ranked here.</div>`;
+    if (!state.voters.length) return `<div class="empty-note">No votes yet. Once people rate spots or pick their Top 5, they're ranked here.</div>`;
     let rank = 0;
     const sections = TIER_ORDER.map((key) => {
       const items = shown.filter((p) => stats(p).tier === key);
@@ -1405,6 +1495,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
             <div class="pinfo">
               <button class="pname" type="button" data-goto="${esc(p.id)}">${esc(p.name)}</button>
               ${metaHTML(p, state.list === "all")}
+              ${s.tops ? `<p class="meta top-line"><span class="top-star">★</span>In ${esc(s.topBy.map((v) => v.name).join(", "))}'s Top 5</p>` : ""}
               ${peopleHTML(p)}
             </div>
             <div class="pscore">
@@ -1416,7 +1507,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
         }).join("")}</div>
       </section>`;
     }).join("");
-    return `<p class="intro">Ranked by everyone's 1–5 scores. Ties go to the spot with more 5s.</p>${votedHTML()}${sections}`;
+    return `<p class="intro">Anything in someone's Top 5 is a Must go. Everything else is ranked by everyone's 1–5 scores; ties go to the spot with more 5s.</p>${votedHTML()}${sections}`;
   }
 
   /* ---------- View: reservations ---------- */
@@ -1445,7 +1536,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
   function renderBook() {
     const shown = places().filter(inList);
     const needs = (p) => (need(p)?.level || 0) >= 3;
-    const wanted = (p) => ["def", "prob"].includes(stats(p).tier);
+    const wanted = (p) => WANTED.includes(stats(p).tier);
     const order = (a, b) => (need(b)?.level || 0) - (need(a)?.level || 0) || byGroup(a, b);
     const booked = shown.filter(isBooked).sort(byGroup);
     const open = shown.filter(toBook);
@@ -1456,7 +1547,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
     const sec = (title, note, items) => (items.length ? `<section class="book-sec"><h2>${title} <span class="n">${items.length}</span></h2><p>${note}</p>${items.map(bookRowHTML).join("")}</section>` : "");
     const togo = daysToGo();
     return `<p class="intro">${togo ? `<b>${esc(togo)}.</b> ` : ""}Booking levels are Wanderlog's estimates for ${esc(state.months.map((m) => new Date(2000, m, 1).toLocaleDateString("en-US", { month: "long" })).join(" and "))}. Mark spots booked and add details so everyone can see them.</p>
-      ${sec("Book these first", "The group wants to go, and Wanderlog says to reserve.", first)}
+      ${sec("Book these first", "In someone's Top 5 or the group wants to go, and Wanderlog says to reserve.", first)}
       ${sec("Waiting on votes", "These need a reservation, but not enough people have rated them yet.", undecided)}
       ${sec("Booked", "Marked as booked by the group, or a reservation is on the Wanderlog itinerary.", booked)}
       ${sec("Lower priority", "These need a reservation, but the group is lukewarm.", later)}
@@ -1556,9 +1647,11 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
     if (!el) return;
     if (!window.L) { el.innerHTML = `<div class="empty-note">The map couldn't load. Check your connection and reload.</div>`; return; }
     const map = L.map(el, { zoomControl: true, scrollWheelZoom: true });
-    L.tileLayer(`https://{s}.basemaps.cartocdn.com/${isDark() ? "dark_all" : "light_all"}/{z}/{x}/{y}{r}.png`, {
-      subdomains: "abcd", maxZoom: 20,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    // OpenStreetMap's own tiles: free, no key. Toned down (and inverted in dark mode) so the pins stand out.
+    el.classList.toggle("dark-tiles", isDark());
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(map);
     state.map = { map, layer: L.layerGroup().addTo(map), markers: new Map(), openId: null };
     map.on("popupopen", (e) => { state.map.openId = e.popup._source?.options.placeId || null; });
@@ -1575,13 +1668,14 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
     state.map.markers.clear();
     const shown = places().filter(inList);
     const pts = shown.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
-    const surface = cssVar("--surface"), muted = cssVar("--muted");
+    // Pins get a ring that contrasts with the map: the page surface on light tiles, light ink on dark ones.
+    const surface = cssVar("--surface"), muted = cssVar("--muted"), ring = isDark() ? cssVar("--ink") : surface;
     const ordered = [...pts].sort((a, b) => TIER_ORDER.indexOf(stats(b).tier) - TIER_ORDER.indexOf(stats(a).tier));
     for (const p of ordered) {
       const t = stats(p).tier;
       const marker = L.circleMarker([p.lat, p.lng], t === "wait"
         ? { placeId: p.id, radius: 7, color: muted, weight: 1.5, dashArray: "3 3", fillColor: surface, fillOpacity: 1 }
-        : { placeId: p.id, radius: t === "def" ? 10 : 8, color: surface, weight: 2, fillColor: cssVar(`--v-${t}`), fillOpacity: 1 });
+        : { placeId: p.id, radius: t === "must" ? 11 : t === "def" ? 9.5 : 8, color: ring, weight: isDark() ? 1.5 : 2, fillColor: cssVar(`--v-${t}`), fillOpacity: 1 });
       marker.bindPopup(() => popupHTML(p), { maxWidth: 280, minWidth: 250 });
       marker.bindTooltip(p.name, { direction: "top", offset: [0, -8] });
       layer.addLayer(marker);
@@ -1605,10 +1699,11 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
     if (!state.board) { $("#side").innerHTML = ""; return; }
     const all = places();
     const st = new Map(all.map((p) => [p.id, stats(p)]));
-    const isGo = (p) => st.get(p.id).tier === "def";
+    const isGo = (p) => GOING.includes(st.get(p.id).tier);
     const goCount = all.filter(isGo).length;
+    const mustCount = all.filter((p) => st.get(p.id).tier === "must").length;
     const bookCount = all.filter(toBook).length;
-    const wantedToBook = all.filter((p) => toBook(p) && ["def", "prob"].includes(st.get(p.id).tier)).length;
+    const wantedToBook = all.filter((p) => toBook(p) && WANTED.includes(st.get(p.id).tier)).length;
     const bookedCount = all.filter(isBooked).length;
 
     const kinds = Object.keys(KINDS)
@@ -1637,7 +1732,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
       const remove = state.isPlanner
         ? `<button class="remove-btn" type="button" data-remove-voter="${esc(v.id)}" title="Remove ${esc(v.name)} and their votes" aria-label="Remove ${esc(v.name)} and their votes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg></button>`
         : "<span></span>";
-      return `<li><span class="nm" title="${esc(v.name)}">${esc(v.name)}</span><span class="meter" role="img" aria-label="${esc(v.name)} rated ${n} of ${all.length}"><span style="width:${(n / all.length) * 100}%"></span></span><b>${n}/${all.length}</b>${remove}</li>`;
+      return `<li><span class="nm" title="${esc(v.name)}">${esc(v.name)}</span><span class="meter" role="img" aria-label="${esc(v.name)} rated ${n} of ${all.length}"><span style="width:${(n / all.length) * 100}%"></span></span><b>${n}/${all.length}</b><span class="tops" title="${esc(v.name)} has picked ${v.top.length} of ${TOP_MAX} Top 5 places"><span class="top-star" style="margin:0">★</span>${v.top.length}/${TOP_MAX}</span>${remove}</li>`;
     }).join("");
 
     $("#side").innerHTML = `
@@ -1649,18 +1744,18 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
       <p class="side-sub">Totals for the whole trip</p>
       <div class="kpis">
         <div class="kpi"><span class="kpi-l">Spots</span><b>${all.length}</b></div>
-        <div class="kpi"><span class="kpi-l">Voters</span><b>${state.voters.length}</b></div>
-        <div class="kpi"><span class="kpi-l">Definitely go</span><b>${goCount}</b></div>
+        <div class="kpi"><span class="kpi-l">Must go</span><b>${mustCount}</b><small>in someone's Top 5</small></div>
+        <div class="kpi"><span class="kpi-l">Definitely go</span><b>${goCount - mustCount}</b><small>the group agrees</small></div>
         <div class="kpi"><span class="kpi-l">Still to book</span><b>${bookCount}</b><small>${wantedToBook} the group wants · ${bookedCount} booked</small></div>
       </div>
       <section class="side-sec">
         <h3>By type</h3>
         <table class="kinds">
-          <thead><tr><th scope="col">Type</th><th scope="col" class="num">Spots</th><th scope="col" class="num" title="The group says definitely go">Go</th><th scope="col" class="num" title="Needs a reservation and nobody has booked it yet">Book</th></tr></thead>
+          <thead><tr><th scope="col">Type</th><th scope="col" class="num">Spots</th><th scope="col" class="num" title="Must go (someone's Top 5) or definitely go">Go</th><th scope="col" class="num" title="Needs a reservation and nobody has booked it yet">Book</th></tr></thead>
           <tbody>${rows}</tbody>
           <tfoot><tr><th scope="row">Total</th>${num(all.length)}${num(goCount)}${num(bookCount)}</tr></tfoot>
         </table>
-        <p class="side-note">Go = definitely go · Book = still needs a reservation. Tap a type to filter the list.</p>
+        <p class="side-note">Go = must go or definitely go · Book = still needs a reservation. Tap a type to filter the list.</p>
       </section>
       <section class="side-sec">
         <h3>Group verdict</h3>
@@ -1668,7 +1763,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
         <ul class="legend">${legend}</ul>
       </section>
       <section class="side-sec">
-        <h3>Votes in</h3>
+        <h3>Votes in · ${state.voters.length} ${state.voters.length === 1 ? "person" : "people"}</h3>
         ${meters ? `<ul class="meters">${meters}</ul>` : `<p class="side-note">Nobody has joined yet.</p>`}
       </section>`;
   }
@@ -1692,9 +1787,9 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
     const hero = $("#hero");
     hero.style.backgroundImage = plan.hero ? `url("${plan.hero.replace(/"/g, "%22")}")` : "";
     $("#heroCredit").hidden = !plan.hero;
-    $("#tripPlace").textContent = plan.destination || "Trip Ranker";
+    $("#tripPlace").textContent = plan.destination || "POI Planner";
     $("#tripTitle").textContent = plan.title || NEW_TRIP;
-    document.title = `${plan.title || NEW_TRIP} · Trip Ranker`;
+    document.title = `${plan.title || NEW_TRIP} · POI Planner`;
     const sync = plan.status === "pending"
       ? `${plan.places ? "Refreshing" : "Importing"} from Wanderlog…`
       : plan.status === "error" ? "Couldn't refresh from Wanderlog"
@@ -1856,6 +1951,8 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
   $("#main").addEventListener("click", (e) => {
     const rate = e.target.closest("[data-rate]");
     if (rate) return setScore(rate.closest("[data-id]").dataset.id, Number(rate.dataset.rate));
+    const top = e.target.closest("[data-top]");
+    if (top) return toggleTop(top.closest("[data-id]").dataset.id);
     const go = e.target.closest("[data-goto]");
     if (go) return goToSpot(go.dataset.goto);
   });
