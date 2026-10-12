@@ -164,7 +164,7 @@ app-switcher { color: var(--ink); --app-switcher-hover-bg: var(--surface-2); }
 main { padding: 16px 0 40px; }
 .banner { margin: 12px 0 0; padding: 10px 14px; border-radius: 10px; background: var(--hot-soft); color: var(--hot); font-size: 14px; }
 .intro { margin: 0 0 14px; color: var(--muted); font-size: 14px; }
-.progress { display: flex; align-items: center; gap: 12px; margin: 0 0 16px; font-size: 14px; }
+.progress { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0 0 16px; font-size: 14px; }
 .progress .track { flex: 1; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; max-width: 260px; }
 .progress .fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width .3s ease; }
 .list-head { margin: 26px 0 10px; display: flex; align-items: baseline; gap: 8px; font: 600 20px/1.2 var(--font-display); }
@@ -1263,6 +1263,26 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     } catch (e) { dbError(e); }
   }
 
+  // Clear all of my ratings and must-gos on this trip (after confirming). I stay on the trip under my name.
+  async function resetMyVotes() {
+    const v = myVoter();
+    const ratings = v ? Object.keys(v.scores).length : 0, musts = v ? v.top.length : 0;
+    if (!ratings && !musts) return toast("You haven't voted on anything yet.");
+    const what = [ratings && `your ${ratings} rating${ratings === 1 ? "" : "s"}`, musts && `${musts} must-go${musts === 1 ? "" : "s"}`].filter(Boolean).join(" and ");
+    const ok = await askDialog({
+      title: "Reset all your votes?",
+      body: `This clears ${what} on this trip. You stay on the trip as ${v.name}. This can't be undone.`,
+      confirm: "Reset my votes",
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      // update() replaces the whole scores map and must-go list (a merge would keep the old entries)
+      await votersRef().doc(v.id).update({ scores: {}, top: [], updatedAt: FV().serverTimestamp() });
+      toast("Your votes were reset.");
+    } catch (e) { dbError(e); }
+  }
+
   // Planners can take someone off a trip, along with their votes.
   async function removeVoter(voterId) {
     const v = state.voters.find((x) => x.id === voterId);
@@ -1489,7 +1509,9 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
 
   function progressText() {
     const rated = places().filter((p) => myScore(p.id)).length;
-    return `You've rated <b>${rated}</b> of ${places().length} · <span class="top-star" style="margin:0">★</span> Must go: <b>${myTop().length}</b> of ${TOP_MAX}`;
+    const any = rated || myTop().length;
+    return `You've rated <b>${rated}</b> of ${places().length} · <span class="top-star" style="margin:0">★</span> Must go: <b>${myTop().length}</b> of ${TOP_MAX}`
+      + (any ? ` · <button type="button" class="not-you" data-reset>Reset my votes</button>` : "");
   }
 
   function renderSpots() {
@@ -2036,7 +2058,9 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     const n = places().filter((p) => scoreOf(v, p.id)).length;
     actions.innerHTML = `
       <p class="lbl">${esc(v.name)}${v.id === state.me?.id ? " (you)" : ""} · ${n} rated · ${v.top.length} must-go${v.top.length === 1 ? "" : "s"}</p>
-      ${v.id === state.me?.id ? "" : `<button class="btn small" type="button" data-who-vote>Vote as ${esc(v.name)}</button>`}
+      ${v.id === state.me?.id
+        ? `<button class="btn small ghost" type="button" data-who-reset>Reset my votes</button>`
+        : `<button class="btn small" type="button" data-who-vote>Vote as ${esc(v.name)}</button>`}
       <button class="btn small danger-ghost" type="button" data-who-remove>Remove ${esc(v.name)}</button>`;
   }
   function openWho(hint) {
@@ -2064,6 +2088,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     const v = state.voters.find((x) => x.id === whoSelected);
     if (!v) return;
     if (e.target.closest("[data-who-vote]")) return chooseVoter(v);
+    if (e.target.closest("[data-who-reset]")) { await resetMyVotes(); return renderWhoNames(); }
     if (e.target.closest("[data-who-remove]")) {
       await removeVoter(v.id); // asks for confirmation first
       renderWhoNames();
@@ -2133,6 +2158,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     const top = e.target.closest("[data-top]");
     if (top) return toggleTop(top.closest("[data-id]").dataset.id);
     if (e.target.closest("[data-switch]")) return openWho();
+    if (e.target.closest("[data-reset]")) return resetMyVotes();
     const go = e.target.closest("[data-goto]");
     if (go) return goToSpot(go.dataset.goto);
   });

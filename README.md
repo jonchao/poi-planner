@@ -26,6 +26,8 @@ Each trip has:
   and who has voted.
 - **Who's voting?** (tap your name at the top): switch names or join. Planners can also pick a name and remove that
   voter and their votes (after a confirmation).
+- **Reset my votes** (after your progress line on All spots, or your own name in Who's voting): clears all your
+  ratings and must-gos on the trip, after a confirmation. Your name stays.
 
 The header shows when the trip last refreshed from Wanderlog.
 
