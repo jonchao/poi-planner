@@ -427,6 +427,17 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
     appId: "1:225752772584:web:a091a48cdcb78884affe5d"
   };
   const SYNC_URL = "https://github.com/jonchao/trip-ranker/actions/workflows/sync.yml";
+  // When the site last checked Wanderlog: the latest successful run of the sync job.
+  const RUNS_URL = "https://api.github.com/repos/jonchao/trip-ranker/actions/workflows/sync.yml/runs?status=success&per_page=1";
+  let lastSync = null;
+  async function loadLastSync() {
+    try {
+      const res = await fetch(RUNS_URL, { headers: { Accept: "application/vnd.github+json" } });
+      if (!res.ok) return;
+      lastSync = (await res.json()).workflow_runs?.[0]?.updated_at || null;
+      if (state.board) renderHeader();
+    } catch (e) { /* offline or rate-limited: leave it out */ }
+  }
   const SCORE_WORDS = ["", "Skip it", "Meh", "Sure", "Want to", "Must go"];
   const TIERS = {
     def:   { name: "Definitely go", cls: "t-def",   hint: "Average 4 or more and nobody below 3" },
@@ -1015,7 +1026,7 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
   function renderHeader() {
     const b = state.board;
     $("#tripTitle").textContent = b.title;
-    $("#tripSub").textContent = [fmtRange(b.startDate, b.endDate), daysToGo(), `${b.places.length} spots`].filter(Boolean).join(" · ");
+    $("#tripSub").textContent = [fmtRange(b.startDate, b.endDate), daysToGo(), `${b.places.length} spots`, lastSync ? `Refreshed from Wanderlog ${ago(lastSync)}` : ""].filter(Boolean).join(" · ");
     const who = $("#whoBtn");
     const me = myVoter() || state.me;
     who.classList.toggle("empty", !me);
@@ -1176,6 +1187,9 @@ dialog.dlg::backdrop { background: rgba(20,16,12,.45); }
   });
 
   openBoard();
+  loadLastSync();
+  setInterval(() => { if (state.board) renderHeader(); }, 60_000);
+  setInterval(loadLastSync, 10 * 60_000);
 })();
 </script>
 </body>

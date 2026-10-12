@@ -1,10 +1,10 @@
 name: Sync from Wanderlog
 
-# Pulls each trip in the WANDERLOG_TRIPS secret every hour (and on demand from the Actions tab),
+# Pulls each trip in the WANDERLOG_TRIPS secret twice an hour (and on demand from the Actions tab),
 # then commits data/*.json if anything changed. GitHub Pages redeploys on the commit.
 on:
   schedule:
-    - cron: "17 * * * *"
+    - cron: "7,37 * * * *"
   workflow_dispatch:
 
 permissions:
