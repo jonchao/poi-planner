@@ -29,6 +29,16 @@ service cloud.firestore {
         && resource.data.owner in request.resource.data.planners;
     }
 
+    // A GitHub token that can only start this repo's import job, so planners' Refresh / New trip import right away
+    // instead of waiting for the schedule. Planners read it; only the owner sets it.
+    match /config/github {
+      allow read: if isPlanner();
+      allow delete: if isOwner();
+      allow create, update: if isOwner()
+        && request.resource.data.keys().hasOnly(['token', 'updatedAt'])
+        && request.resource.data.token is string && request.resource.data.token.size() > 10 && request.resource.data.token.size() <= 300;
+    }
+
     // A trip: title, dates, and the places imported from Wanderlog (written by the sync job).
     match /plans/{planId} {
       allow get: if signedIn() && longId(planId);
