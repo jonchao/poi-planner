@@ -39,6 +39,28 @@ function shortBlurb(meta) {
   return out.length > 260 ? out.slice(0, 250).replace(/\s+\S*$/, "") + "…" : out;
 }
 
+// Opening hours for each weekday, Sunday first, as "0900-1800" ranges joined by commas: "" when closed that day,
+// null when Wanderlog doesn't know. A close after midnight runs past 2400 ("1800-2600" is 6 PM to 2 AM).
+// Kept as strings because Firestore can't store nested arrays.
+function weekHours(periods) {
+  if (!Array.isArray(periods) || !periods.length) return null;
+  const mins = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(2, 4));
+  const hhmm = (m) => String(Math.floor(m / 60)).padStart(2, "0") + String(m % 60).padStart(2, "0");
+  const days = [[], [], [], [], [], [], []];
+  for (const p of periods) {
+    if (!/^\d{4}$/.test(p?.open?.time || "") || !(p.open.day >= 0 && p.open.day <= 6)) continue;
+    if (!p.close) { // open around the clock: one period means every day
+      for (const d of periods.length === 1 ? [0, 1, 2, 3, 4, 5, 6] : [p.open.day]) days[d].push([0, 1440]);
+      continue;
+    }
+    const start = mins(p.open.time);
+    let end = ((p.close.day - p.open.day + 7) % 7) * 1440 + mins(p.close.time);
+    if (end <= start) end = start + 1440;
+    days[p.open.day].push([start, Math.min(end, start + 1440)]);
+  }
+  return days.map((d) => d.sort((a, b) => a[0] - b[0]).map(([a, b]) => `${hhmm(a)}-${hhmm(b)}`).join(","));
+}
+
 const prettyType = (t) => (t ? t.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase()) : null);
 
 // What kind of place it is, for the dashboard totals. Checked in order, so "Espresso bar" is a cafe
@@ -113,6 +135,7 @@ export function toBoard(json) {
           booking: Array.isArray(months) && months.length === 12
             ? { weekdays: months.map((x) => x.weekdays || 0), weekends: months.map((x) => x.weekends || 0) }
             : null,
+          hours: weekHours(m.openingPeriods),
           scheduled: [],
           image: m.imageKeys?.[0] ? IMAGE_URL + m.imageKeys[0] : null,
           closed: !!m.permanentlyClosed || (m.businessStatus && m.businessStatus !== "OPERATIONAL") || false,

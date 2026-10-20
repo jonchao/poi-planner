@@ -18,7 +18,8 @@
    the main column (sticky bar with tabs + list filters, then the view) and a sticky summary side panel with
    whole-trip totals. Below 1100px the summary becomes a slide-over panel opened from the bar.
    Views: "All spots" is one card per place (photo, short description, your 1-5 rating, everyone's scores),
-   "Group picks" ranks places into tiers, "Reservations" lists what still needs booking, "Itinerary" is Wanderlog's day-by-day plan, "Map" pins every place. */
+   "Group picks" ranks places into tiers, "Reservations" lists what still needs booking, "Itinerary" is a suggested
+   walkable day-by-day plan built from the ratings (suggest.js) or Wanderlog's own plan, "Map" pins every place. */
 :root {
   /* Travel palette: sky and sea for the page and the group's verdict, sunset for your own ratings. */
   --bg: #f1f6fa;
@@ -324,6 +325,24 @@ details.walkins p { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
 .it-info .meta, .it-info .note { margin: 0; }
 .it-score { display: grid; justify-items: end; gap: 4px; }
 .it-score .avg b { font-size: 18px; }
+/* Suggested plan: the same timeline, with walking legs between stops and optional spots after each day */
+.seg { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.day-stats { margin: -4px 0 10px; color: var(--muted); font-size: 13.5px; }
+.it-time small { display: block; font-size: 11px; font-weight: 500; letter-spacing: .02em; }
+.day-list li.leg-row, .day-list li.free-row { align-items: start; }
+.leg-row .leg, .free-row .free { padding-left: 14px; font-size: 12.5px; color: var(--muted); }
+.leg-row .leg.ride { color: var(--warn); font-weight: 600; }
+.free-row .free { font-style: italic; }
+.it-info .when { margin: 0; font-size: 13px; color: var(--muted); }
+.it-info .when.unknown { color: var(--warn); }
+.opt { margin: 10px 0 0 76px; padding: 10px 14px; border: 1px dashed var(--line); border-radius: 12px; }
+.opt h3 { margin: 0 0 6px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.opt ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.opt li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+.opt .pname { font-size: 14.5px; }
+.opt .meta { margin: 0; font-size: 13px; }
+.unplaced li { margin: 4px 0; font-size: 14px; }
+.unplaced .why { color: var(--muted); }
 
 /* Map */
 .map-wrap { display: grid; gap: 10px; }
@@ -501,12 +520,14 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
   .bk { grid-template-columns: minmax(0, 1fr); }
   .bk-check { justify-self: start; }
   .map { height: 62vh; }
-  .day-list::before { left: 53px; }
-  .day-list li { grid-template-columns: 48px minmax(0, 1fr); gap: 10px; }
+  .day-list::before { left: 61px; }
+  .day-list li { grid-template-columns: 58px minmax(0, 1fr); gap: 10px; }
   .it-time { font-size: 12px; }
   .it-card { grid-template-columns: 44px minmax(0, 1fr); }
   .it-card .pthumb { width: 44px; height: 44px; }
   .it-score { grid-column: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+  .it-time small { font-size: 10.5px; white-space: normal; }
+  .opt { margin-left: 0; }
 }
 @media (max-width: 359px) { .rate-btn span { display: none; } .rate-legend { display: block; } .votes-list { grid-template-columns: minmax(0, 1fr); } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
@@ -669,6 +690,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="suggest.js"></script>
 <script>
 (() => {
   // POI Planner's own Firebase project (rules: firestore.rules).
@@ -725,6 +747,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     voters: [], spots: {}, me: null,
     view: "spots", list: "all", kind: null, sort: "list", unratedOnly: false,
     pendingRender: false, map: null,
+    daysMode: lsGet("poi.daysMode") === "wanderlog" ? "wanderlog" : "suggested", // Itinerary tab: our plan or Wanderlog's
   };
   let tripUnsubs = [], homeUnsubs = [];
   const votersRef = () => db.collection("rankBoards").doc(state.tripId).collection("voters");
@@ -1773,36 +1796,182 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     </li>`;
   }
 
-  // Every day of the trip (empty ones too), with Wanderlog's planned places in order.
-  function renderItinerary() {
+  // Every day of the trip (from its dates, plus any day Wanderlog's plan has outside them).
+  function tripDates() {
     const b = state.board;
-    const byDate = new Map((b.itinerary || []).map((d) => [d.date, d]));
     const dates = [];
     if (b.startDate && b.endDate) {
       for (const d = day(b.startDate); d <= day(b.endDate) && dates.length < 90; d.setDate(d.getDate() + 1)) dates.push(isoDay(d));
     }
+    return dates;
+  }
+
+  function renderItinerary() {
+    const seg = (mode, label) => `<button type="button" class="chip-btn" data-days-mode="${mode}" aria-pressed="${state.daysMode === mode}">${label}</button>`;
+    return `<div class="seg" role="group" aria-label="Which day-by-day plan">${seg("suggested", "Suggested plan")}${seg("wanderlog", "Wanderlog's plan")}</div>`
+      + (state.daysMode === "wanderlog" ? renderWanderlogDays() : renderSuggested());
+  }
+
+  function dayHeadHTML(date, extra = "") {
+    const b = state.board;
+    const n = b.startDate ? Math.round((day(date) - day(b.startDate)) / 864e5) + 1 : 0;
+    return `<div class="day-head">
+        ${n >= 1 ? `<span class="day-num">Day ${n}</span>` : ""}
+        <h2>${esc(fmtDay(date, { weekday: "long", month: "short", day: "numeric" }))}</h2>
+        ${date === isoDay(new Date()) ? `<span class="badge booked-b">Today</span>` : ""}
+        ${extra}
+      </div>`;
+  }
+
+  // Wanderlog's own day-by-day plan: every day of the trip (empty ones too), places in Wanderlog's order.
+  function renderWanderlogDays() {
+    const b = state.board;
+    const byDate = new Map((b.itinerary || []).map((d) => [d.date, d]));
+    const dates = tripDates();
     for (const d of byDate.keys()) if (!dates.includes(d)) dates.push(d);
     dates.sort();
     if (!dates.length) return `<div class="empty-note">Wanderlog doesn't have a day-by-day plan for this trip yet. Add places to days in Wanderlog's itinerary and they'll show up here.</div>`;
     const byId = new Map(places().map((p) => [p.id, p]));
     const planned = [...byDate.values()].reduce((n, d) => n + d.items.filter((it) => it.placeId && byId.has(it.placeId)).length, 0);
-    const today = isoDay(new Date());
     return `<p class="intro">Wanderlog's day-by-day plan: ${planned} place${planned === 1 ? "" : "s"} across ${dates.length} day${dates.length === 1 ? "" : "s"}. Plan days in Wanderlog; they show up here after the next refresh.</p>
       <div class="days">${dates.map((date) => {
         const d = byDate.get(date);
         const items = (d?.items || []).map((it) => itineraryItemHTML(it, byId)).join("");
-        const n = b.startDate ? Math.round((day(date) - day(b.startDate)) / 864e5) + 1 : 0;
         return `<section class="day" aria-label="${esc(fmtDay(date, { weekday: "long", month: "long", day: "numeric" }))}">
-          <div class="day-head">
-            ${n >= 1 ? `<span class="day-num">Day ${n}</span>` : ""}
-            <h2>${esc(fmtDay(date, { weekday: "long", month: "short", day: "numeric" }))}</h2>
-            ${date === today ? `<span class="badge booked-b">Today</span>` : ""}
-            ${d?.title ? `<p class="day-title">${esc(d.title)}</p>` : ""}
-          </div>
+          ${dayHeadHTML(date, d?.title ? `<p class="day-title">${esc(d.title)}</p>` : "")}
           ${d?.note ? `<p class="day-note">${esc(d.note)}</p>` : ""}
           ${items ? `<ol class="day-list">${items}</ol>` : `<p class="day-empty">Nothing planned yet</p>`}
         </section>`;
       }).join("")}</div>`;
+  }
+
+  /* ---------- View: suggested plan (built by suggest.js from the ratings, opening hours and walking distance) ---------- */
+
+  // Minutes after midnight (can pass 24:00) as a clock time: "9:00 AM", or "9 AM" when short.
+  function fmtClock(min, short) {
+    const h = Math.floor(min / 60) % 24, m = min % 60;
+    const ampm = h < 12 ? "AM" : "PM", h12 = ((h + 11) % 12) + 1;
+    return short && !m ? `${h12} ${ampm}` : `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
+  }
+  function hoursText(h) {
+    if (!h.known) return "";
+    if (!h.open.length) return "Closed";
+    if (h.open.some(([a, b]) => a <= 0 && b >= 1440)) return "Open 24 hours";
+    const at = (m) => (m % 1440 === 0 ? "midnight" : fmtClock(m, true));
+    return "Open " + h.open.map(([a, b]) => `${at(a)}–${at(b)}`).join(", ");
+  }
+  const fmtLength = (min) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} hr${min % 60 ? ` ${min % 60} min` : ""}`);
+  const SLOT_NAMES = { breakfast: "Breakfast", morning: "Morning", lunch: "Lunch", afternoon: "Afternoon", snack: "Evening", dinner: "Dinner", drinks: "Drinks", late: "Late" };
+
+  // The plan only changes when the places, the votes that matter (averages, must-gos) or Wanderlog's plan do.
+  let suggestCache = { key: null, plan: null };
+  function suggestedPlan(dates) {
+    const input = places().map((p) => {
+      const s = stats(p);
+      return { ...p, avg: Math.round(s.avg * 10) / 10, must: s.tier === "must" };
+    });
+    const booked = (state.board.itinerary || []).flatMap((d) => d.items.filter((it) => it.placeId).map((it) => ({ placeId: it.placeId, date: d.date, time: it.time, endTime: it.endTime })));
+    const key = state.boardKey + "|" + JSON.stringify([dates, input.map((p) => [p.id, p.avg, p.must])]);
+    if (suggestCache.key !== key) suggestCache = { key, plan: window.POIPlan.suggest({ dates, places: input, booked }) };
+    return suggestCache.plan;
+  }
+
+  function stopHTML(stop, p) {
+    const s = stats(p);
+    const when = [];
+    if (stop.start !== null && stop.end !== null) when.push(`About ${fmtLength(stop.end - stop.start)}`);
+    const hours = hoursText(stop.hours);
+    if (hours) when.push(hours);
+    const tags = [];
+    if (stop.booked) tags.push(`<span class="badge booked-b">Wanderlog booking</span>`);
+    else if (stop.onWanderlog) tags.push(`<span class="badge res-lo">On Wanderlog for this day</span>`);
+    const badges = badgesHTML(p);
+    return `<li>
+      <span class="it-time">${stop.start === null ? "Any time" : esc(fmtClock(stop.start))}${stop.slot ? `<small>${SLOT_NAMES[stop.slot]}</small>` : ""}</span>
+      <div class="it-card" data-id="${esc(p.id)}">
+        ${thumbHTML(p, "pthumb")}
+        <div class="it-info">
+          <button class="pname" type="button" data-goto="${esc(p.id)}">${esc(p.name)}</button>
+          ${metaHTML(p, false)}
+          ${when.length ? `<p class="when">${esc(when.join(" · "))}</p>` : ""}
+          ${stop.hours.known ? "" : `<p class="when unknown">Wanderlog doesn't list hours; check before going</p>`}
+          ${tags.length || badges ? `<span class="badges">${tags.join("")}${badges}</span>` : ""}
+        </div>
+        <div class="it-score">
+          ${s.count ? `<span class="avg"><b>${s.avg.toFixed(1)}</b><small>avg</small></span>` : ""}
+          ${tierHTML(s)}
+        </div>
+      </div>
+    </li>`;
+  }
+  function legHTML(leg) {
+    const dist = leg.km !== null ? ` · ${(leg.km * 1.3).toFixed(1)} km` : "";
+    return leg.mode === "walk"
+      ? `<li class="leg-row"><span></span><span class="leg">${leg.min} min walk${dist}</span></li>`
+      : `<li class="leg-row"><span></span><span class="leg ride">About ${leg.min} min by car or taxi${dist}</span></li>`;
+  }
+
+  function renderSuggested() {
+    if (!window.POIPlan) return `<div class="empty-note">The suggested plan didn't load. Reload the page to try again.</div>`;
+    const dates = tripDates();
+    if (!dates.length) return `<div class="empty-note">Add the trip's dates in Wanderlog to get a suggested day-by-day plan.</div>`;
+    const plan = suggestedPlan(dates);
+    const byId = new Map(places().map((p) => [p.id, p]));
+    const wanted = (id) => { const s = stats(byId.get(id) || {}); return s.tier === "must" || Math.round(s.avg * 10) / 10 >= 4; };
+    const stops = plan.days.reduce((n, d) => n + d.stops.filter((x) => byId.has(x.id) && wanted(x.id)).length, 0);
+    const optional = plan.days.reduce((n, d) => n + d.optional.length, 0);
+    if (!stops && !plan.unplaced.length && !plan.days.some((d) => d.stops.length)) {
+      return `<div class="empty-note">Nothing is rated 4.0 or higher yet. Once the group rates spots, a suggested plan shows up here.</div>`;
+    }
+    const noHours = !places().some((p) => Array.isArray(p.hours));
+    const intro = `<p class="intro">Built from the group's ratings: the ${stops} spot${stops === 1 ? "" : "s"} rated 4.0 or higher (and every Must go) over ${dates.length} days. Each day stays in one part of town so you can walk between stops, and each stop is timed for when it's open. Wanderlog bookings keep their day and time, and the first and last days are kept light for travel.${optional ? ` Spots rated 3.0–3.9 are listed as optional near where you'll be.` : ""} The plan updates as people vote.${noHours ? " <b>Opening hours arrive with the next Wanderlog refresh</b>; until then, times assume typical hours." : ""}</p>`;
+
+    const days = plan.days.map((d) => {
+      const rows = [];
+      let prevEnd = null;
+      for (const stop of d.stops) {
+        const p = byId.get(stop.id);
+        if (!p) continue;
+        if (prevEnd !== null && stop.start !== null) {
+          const free = stop.start - (prevEnd + (stop.leg ? stop.leg.min : 0));
+          if (free >= 120) {
+            const from = prevEnd, to = stop.start;
+            const meal = from <= 13 * 60 + 30 && to >= 15 * 60 ? " for lunch" : from <= 19 * 60 + 30 && to >= 21 * 60 ? " for dinner" : "";
+            rows.push(`<li class="free-row"><span></span><span class="free">Free time${meal} · about ${fmtLength(Math.round(free / 30) * 30)}</span></li>`);
+          }
+        }
+        if (stop.leg) rows.push(legHTML(stop.leg));
+        rows.push(stopHTML(stop, p));
+        if (stop.end !== null) prevEnd = stop.end;
+      }
+      const bits = [`${d.stops.length} stop${d.stops.length === 1 ? "" : "s"}`];
+      if (d.walkMin) bits.push(`${fmtLength(d.walkMin)} walking`);
+      if (d.rides) bits.push(`${d.rides} ride${d.rides === 1 ? "" : "s"}`);
+      if (d.light === "arrive") bits.push("Arrival day, from mid-afternoon");
+      if (d.light === "leave") bits.push("Departure day, until mid-afternoon");
+      const opt = d.optional.map((o) => {
+        const p = byId.get(o.id), near = byId.get(o.near);
+        if (!p || !near) return "";
+        const s = stats(p);
+        const how = o.leg.mode === "walk" ? `${o.leg.min} min walk from ${near.name}` : `about ${o.leg.min} min by car from ${near.name}`;
+        const hours = hoursText(o.hours);
+        return `<li><button class="pname" type="button" data-goto="${esc(p.id)}">${esc(p.name)}</button>
+          <p class="meta">${esc([p.category, `${s.avg.toFixed(1)} avg`, how, hours].filter(Boolean).join(" · "))}</p></li>`;
+      }).join("");
+      return `<section class="day" aria-label="${esc(fmtDay(d.date, { weekday: "long", month: "long", day: "numeric" }))}">
+        ${dayHeadHTML(d.date, d.areas.length ? `<p class="day-title">${esc(d.areas.join(" · "))}</p>` : "")}
+        <p class="day-stats">${esc(bits.join(" · "))}</p>
+        ${rows.length ? `<ol class="day-list">${rows.join("")}</ol>` : `<p class="day-empty">A free day: nothing rated 4.0+ fits here.</p>`}
+        ${opt ? `<div class="opt"><h3>Optional nearby · rated 3.0–3.9</h3><ul>${opt}</ul></div>` : ""}
+      </section>`;
+    }).join("");
+
+    const unplaced = plan.unplaced.map((u) => {
+      const p = byId.get(u.id);
+      return p ? `<li><button class="pname" type="button" data-goto="${esc(p.id)}">${esc(p.name)}</button> <span class="why">· ${esc(u.why)}</span></li>` : "";
+    }).join("");
+    return intro + `<div class="days">${days}</div>`
+      + (unplaced ? `<section class="book-sec unplaced"><h2>Didn't fit <span class="n">${plan.unplaced.length}</span></h2><p>Rated 4.0 or higher, but the plan couldn't place them.</p><ul>${unplaced}</ul></section>` : "");
   }
 
   /* ---------- View: map ---------- */
@@ -2258,6 +2427,8 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     if (top) return toggleTop(top.closest("[data-id]").dataset.id);
     if (e.target.closest("[data-switch]")) return openWho();
     if (e.target.closest("[data-reset]")) return resetMyVotes();
+    const mode = e.target.closest("[data-days-mode]");
+    if (mode) { state.daysMode = mode.dataset.daysMode; lsSet("poi.daysMode", state.daysMode); return render(); }
     const go = e.target.closest("[data-goto]");
     if (go) return goToSpot(go.dataset.goto);
   });

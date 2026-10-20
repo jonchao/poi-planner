@@ -20,7 +20,15 @@ Each trip has:
 - **Group picks**: places ranked into tiers. *Must go* = in someone's Top 5; *Definitely go* = average 4+ and nobody
   below 3.
 - **Reservations**: what still needs booking, starting with what the group wants. Anyone can mark a place booked.
-- **Itinerary**: Wanderlog's day-by-day plan, every day of the trip.
+- **Itinerary**: two day-by-day plans.
+  - **Suggested plan** (built by `suggest.js`, in the browser) includes every spot the group rates 4.0 or higher, plus every Must go:
+    - Days are grouped by area so you can walk between stops. Longer hops show as a car or taxi ride.
+    - Each stop is timed to the day's rhythm (coffee, a sight, a late lunch, an afternoon stop, dinner, drinks) for when it's open. Opening hours come from Wanderlog.
+    - Anything on Wanderlog's itinerary keeps its day and time.
+    - The first and last days are kept light for travel.
+    - Spots rated 3.0–3.9 are listed as optional near each day's route.
+    - It updates as people vote.
+  - **Wanderlog's plan**: Wanderlog's own itinerary, every day of the trip.
 - **Map**: every place as a pin colored by the group's verdict (OpenFreeMap styles via MapLibre, no API key).
 - **Summary** (side panel): totals by type (restaurants, cafés & bakeries, bars, sights…), the group's verdict,
   and who has voted.
