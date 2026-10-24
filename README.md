@@ -16,11 +16,12 @@ Live at <https://jonchao.github.io/poi-planner/>.
 Each trip has:
 
 - **All spots**: every place with a photo, short description, Wanderlog's reservation estimate, your rating,
-  and everyone's scores.
+  everyone's scores, and a **Visited** box to tick the places you've been (yours only, saved under your name).
 - **Group picks**: places ranked into tiers. *Must go* = in someone's Top 5; *Definitely go* = average 4+ and nobody
   below 3.
 - **Reservations**: what still needs booking, starting with what the group wants. Anyone can mark a place booked.
-- **Itinerary**: two day-by-day plans.
+- **Itinerary**: two day-by-day plans. Each day has its own color (the same as its pins on the map), and every stop has
+  the same Visited box.
   - **Suggested plan** (built by `suggest.js`, in the browser) includes every spot the group rates 4.0 or higher, plus every Must go:
     - Days are grouped by area so you can walk between stops. Longer hops show as a car or taxi ride.
     - Each stop is timed to the day's rhythm (coffee, a sight, a late lunch, an afternoon stop, dinner, drinks) for when it's open. Opening hours come from Wanderlog.
@@ -29,7 +30,9 @@ Each trip has:
     - Spots rated 3.0–3.9 are listed as optional near each day's route.
     - It updates as people vote.
   - **Wanderlog's plan**: Wanderlog's own itinerary, every day of the trip.
-- **Map**: every place as a pin colored by the group's verdict (OpenFreeMap styles via MapLibre, no API key).
+- **Map**: every place as a pin (OpenFreeMap styles via MapLibre, no API key). **Color pins by** switches between the
+  group's verdict, Wanderlog's days, and the suggested plan's days: numbered pins in that day's color, with places not
+  in the plan small and hollow.
 - **Summary** (side panel): totals by type (restaurants, cafés & bakeries, bars, sights…), the group's verdict,
   and who has voted.
 - **Who's voting?** (tap your name at the top): switch names or join. Planners can also pick a name and remove that
@@ -45,7 +48,7 @@ The header shows when the trip last refreshed from Wanderlog.
   - `team/main`: the owner and co-planners (Google emails)
   - `plans/{tripId}`: a trip's title, dates, places, and itinerary
   - `planSources/{tripId}`: the trip's Wanderlog link (planners only)
-  - `rankBoards/{tripId}/voters|spots`: everyone's ratings and booking notes
+  - `rankBoards/{tripId}/voters|spots`: everyone's ratings, must-gos and visited places, and booking notes
 
   Trip ids are long and random; knowing a trip's link is what lets someone open it.
   Rules are in `firestore.rules`; `.github/workflows/rules.yml` publishes them whenever they change on main.

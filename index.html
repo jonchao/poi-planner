@@ -193,8 +193,11 @@ main { padding: 16px 0 40px; }
 .meta { margin: 3px 0 0; color: var(--muted); font-size: 13.5px; }
 .blurb { margin: 6px 0 0; font-size: 14.5px; }
 .note { margin: 6px 0 0; font-size: 13.5px; padding: 6px 10px; border-left: 3px solid var(--line); color: var(--muted); }
-.sched { margin: 6px 0 0; font-size: 13.5px; color: var(--ok); font-weight: 500; }
-.links { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: 13.5px; }
+.sched { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 6px 0 0; font-size: 13.5px; color: var(--ok); font-weight: 500; }
+.sched-day { display: inline-flex; align-items: center; gap: 5px; }
+/* A day's number on its color (schedule lines, map legend), matching the map's numbered pins */
+.day-dot { display: inline-grid; place-items: center; flex: none; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 999px; background: var(--dc); color: var(--dc-on); font-size: 11px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.links { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 6px; font-size: 13.5px; }
 .links a, .links button { text-decoration: none; font-weight: 500; }
 .links a:hover { text-decoration: underline; }
 .scores { grid-area: scores; display: grid; grid-template-columns: minmax(0, 1fr) minmax(130px, 200px); gap: 10px 20px; align-items: start; padding-top: 12px; border-top: 1px solid var(--line); }
@@ -305,26 +308,31 @@ details.walkins { margin-top: 22px; background: var(--surface); border: 1px soli
 details.walkins summary { cursor: pointer; font-weight: 600; }
 details.walkins p { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
 
-/* Itinerary: one section per day, places in Wanderlog's order on a timeline */
+/* Itinerary: one section per day, places in order on a timeline.
+   Each day wears one color (--dc, set on the section), the same color as its numbered pins on the map. */
 .days { display: grid; gap: 24px; }
 .day-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin: 0 0 10px; }
-.day-num { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+.day-num { align-self: center; padding: 2px 9px; border-radius: 999px; background: var(--dc, var(--accent)); color: var(--dc-on, var(--surface)); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .day-head h2 { margin: 0; font: 600 20px/1.2 var(--font-display); }
 .day-title { margin: 0; color: var(--muted); font-size: 14px; }
 .day-note { margin: 0 0 10px; color: var(--muted); font-size: 14px; }
 .day-empty { margin: 0; padding: 12px 14px; border: 1px dashed var(--line); border-radius: 12px; color: var(--muted); font-size: 14px; }
 .day-list { position: relative; list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.day-list::before { content: ""; position: absolute; left: 69px; top: 10px; bottom: 10px; width: 2px; background: var(--line); }
+.day-list::before { content: ""; position: absolute; left: 69px; top: 10px; bottom: 10px; width: 2px; background: color-mix(in srgb, var(--dc, var(--line)) 50%, transparent); }
 .day-list li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; align-items: center; }
 .it-time { text-align: right; font-size: 13px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .it-card { position: relative; display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 10px 12px; align-items: center; padding: 10px 14px 10px 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
-.it-card::before { content: ""; position: absolute; left: -6px; top: 50%; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--bg); transform: translate(-50%, -50%); }
+.it-card::before { content: ""; position: absolute; left: -6px; top: 50%; width: 10px; height: 10px; border-radius: 50%; background: var(--dc, var(--accent)); box-shadow: 0 0 0 3px var(--bg); transform: translate(-50%, -50%); }
 .it-card.note-card { grid-template-columns: minmax(0, 1fr); padding: 10px 14px; background: transparent; border-style: dashed; color: var(--muted); font-size: 14px; }
 .it-card.note-card::before { background: var(--line); }
 .it-info { min-width: 0; display: grid; gap: 3px; }
 .it-info .meta, .it-info .note { margin: 0; }
 .it-score { display: grid; justify-items: end; gap: 4px; }
 .it-score .avg b { font-size: 18px; }
+/* Visited: each person ticks the places they've been */
+.visit-check { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 8px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.visit-check input { width: 15px; height: 15px; margin: 0; accent-color: var(--ok); }
+.visit-check:has(input:checked) { border-color: color-mix(in srgb, var(--ok) 45%, transparent); background: var(--ok-soft); color: var(--ok); }
 /* Suggested plan: the same timeline, with walking legs between stops and optional spots after each day */
 .seg { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
 .day-stats { margin: -4px 0 10px; color: var(--muted); font-size: 13.5px; }
@@ -346,6 +354,8 @@ details.walkins p { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
 
 /* Map */
 .map-wrap { display: grid; gap: 10px; }
+.map-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.map-tools .lbl { color: var(--muted); font-size: 13.5px; }
 .map { position: relative; isolation: isolate; z-index: 0; height: min(68vh, 640px); min-height: 380px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface-2); }
 .map-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; padding: 0; list-style: none; font-size: 13.5px; }
 .map-legend li { display: inline-flex; align-items: center; gap: 6px; }
@@ -748,6 +758,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     view: "spots", list: "all", kind: null, sort: "list", unratedOnly: false,
     pendingRender: false, map: null,
     daysMode: lsGet("poi.daysMode") === "wanderlog" ? "wanderlog" : "suggested", // Itinerary tab: our plan or Wanderlog's
+    pinColor: ["day", "suggested"].includes(lsGet("tripRanker.pinColor")) ? lsGet("tripRanker.pinColor") : "verdict", // map pins: verdict, or a plan's days
   };
   let tripUnsubs = [], homeUnsubs = [];
   const votersRef = () => db.collection("rankBoards").doc(state.tripId).collection("voters");
@@ -1273,6 +1284,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
   function connectVotes() {
     tripUnsubs.push(votersRef().onSnapshot((snap) => {
       state.voters = snap.docs.map((d) => ({ id: d.id, name: d.data().name || d.id, scores: cleanScores(d.data().scores), top: cleanTop(d.data().top),
+        visited: d.data().visited && typeof d.data().visited === "object" ? d.data().visited : {},
         color: Number.isInteger(d.data().color) && d.data().color >= 0 && d.data().color < PERSON_COLORS ? d.data().color : null }));
       assignSlots(state.voters);
       showBanner("");
@@ -1374,6 +1386,20 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
       }, { merge: true });
     } catch (e) { dbError(e); }
   }
+
+  // Visited is personal, saved with the voter like their scores. It leaves updatedAt alone: that marks vote changes.
+  const isVisited = (placeId) => !!myVoter()?.visited?.[placeId];
+  async function setVisited(placeId, on, box) {
+    if (!state.me) { box.checked = false; return openWho("Pick your name first, then tick the places you've visited."); }
+    try {
+      await votersRef().doc(state.me.id).set({
+        ...colorField(),
+        name: myVoter()?.name || state.me.name,
+        visited: { [placeId]: on ? true : FV().delete() },
+      }, { merge: true });
+    } catch (e) { box.checked = !on; dbError(e); }
+  }
+  const visitHTML = (p) => `<label class="visit-check" title="Tick the places you've been"><input type="checkbox" data-visited${isVisited(p.id) ? " checked" : ""}> Visited</label>`;
 
   async function saveSpot(placeId, fields) {
     try {
@@ -1514,6 +1540,17 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
   const mapsUrl = (p) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name + (p.address ? ", " + p.address : ""))}&query_place_id=${encodeURIComponent(p.id)}`;
   const listColor = (name) => state.board.lists.find((l) => l.name === name)?.color || "var(--muted)";
 
+  // Day 1 is the trip's start date, as in Wanderlog (without dates, the first day on Wanderlog's plan).
+  const firstDay = () => state.board.startDate || (state.board.itinerary || []).map((d) => d.date).sort()[0] || null;
+  const dayNum = (date) => (firstDay() ? Math.round((day(date) - day(firstDay())) / 864e5) + 1 : 0);
+  const dateOfDay = (n) => { const d = day(firstDay()); d.setDate(d.getDate() + n - 1); return isoDay(d); };
+  // Day colors: the person palette's 8 hues in their fixed order, so neighboring days stay distinct (checked for color
+  // blindness). From day 9 the colors repeat, which is why a day's number always shows with its color.
+  const daySlot = (n) => `--p${(n - 1) % 8}`;
+  const dayStyle = (n) => `--dc:var(${daySlot(n)});--dc-on:var(${daySlot(n)}-on)`;
+  const dayAttr = (date) => { const n = dayNum(date); return n >= 1 ? ` style="${dayStyle(n)}"` : ""; };
+  const dayDot = (n) => `<span class="day-dot" style="${dayStyle(n)}">${n}</span>`;
+
   /* ---------- Shared pieces ---------- */
 
   function peopleHTML(p) {
@@ -1542,8 +1579,11 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
   }
   function scheduledHTML(p) {
     if (!p.scheduled.length) return "";
-    const when = p.scheduled.map((s) => fmtDay(s.date, { weekday: "short", month: "short", day: "numeric" }) + (s.time ? ` · ${fmtTime(s.time)}` : "")).join(", ");
-    return `<p class="sched">On the itinerary: ${esc(when)}</p>`;
+    const when = [...p.scheduled].sort((a, b) => a.date.localeCompare(b.date)).map((s) => {
+      const n = dayNum(s.date);
+      return `<span class="sched-day">${n >= 1 ? dayDot(n) : ""}${esc(fmtDay(s.date, { weekday: "short", month: "short", day: "numeric" }) + (s.time ? ` · ${fmtTime(s.time)}` : ""))}</span>`;
+    }).join("");
+    return `<p class="sched">On the itinerary:${when}</p>`;
   }
   function thumbHTML(p, cls) {
     const initial = esc((p.name || "?").trim().charAt(0));
@@ -1619,6 +1659,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
           <div class="links">
             <a href="${esc(mapsUrl(p))}" target="_blank" rel="noopener">Map ↗</a>
             ${p.website ? `<a href="${esc(p.website)}" target="_blank" rel="noopener">Website ↗</a>` : ""}
+            ${visitHTML(p)}
           </div>
         </div>
         <div class="scores">${scoresHTML(p)}</div>
@@ -1668,6 +1709,8 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
       if (!p) return;
       $(".scores", card).innerHTML = scoresHTML(p);
       $(".badges", card).innerHTML = badgesHTML(p);
+      const box = $("[data-visited]", card);
+      if (box) box.checked = isVisited(p.id);
     });
     const prog = $("#progress");
     if (prog && state.me) {
@@ -1791,6 +1834,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
         <div class="it-score">
           ${s.count ? `<span class="avg"><b>${s.avg.toFixed(1)}</b><small>avg</small></span>` : ""}
           ${tierHTML(s)}
+          ${visitHTML(p)}
         </div>
       </div>
     </li>`;
@@ -1813,8 +1857,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
   }
 
   function dayHeadHTML(date, extra = "") {
-    const b = state.board;
-    const n = b.startDate ? Math.round((day(date) - day(b.startDate)) / 864e5) + 1 : 0;
+    const n = dayNum(date);
     return `<div class="day-head">
         ${n >= 1 ? `<span class="day-num">Day ${n}</span>` : ""}
         <h2>${esc(fmtDay(date, { weekday: "long", month: "short", day: "numeric" }))}</h2>
@@ -1837,7 +1880,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
       <div class="days">${dates.map((date) => {
         const d = byDate.get(date);
         const items = (d?.items || []).map((it) => itineraryItemHTML(it, byId)).join("");
-        return `<section class="day" aria-label="${esc(fmtDay(date, { weekday: "long", month: "long", day: "numeric" }))}">
+        return `<section class="day"${dayAttr(date)} aria-label="${esc(fmtDay(date, { weekday: "long", month: "long", day: "numeric" }))}">
           ${dayHeadHTML(date, d?.title ? `<p class="day-title">${esc(d.title)}</p>` : "")}
           ${d?.note ? `<p class="day-note">${esc(d.note)}</p>` : ""}
           ${items ? `<ol class="day-list">${items}</ol>` : `<p class="day-empty">Nothing planned yet</p>`}
@@ -1900,6 +1943,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
         <div class="it-score">
           ${s.count ? `<span class="avg"><b>${s.avg.toFixed(1)}</b><small>avg</small></span>` : ""}
           ${tierHTML(s)}
+          ${visitHTML(p)}
         </div>
       </div>
     </li>`;
@@ -1958,7 +2002,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
         return `<li><button class="pname" type="button" data-goto="${esc(p.id)}">${esc(p.name)}</button>
           <p class="meta">${esc([p.category, `${s.avg.toFixed(1)} avg`, how, hours].filter(Boolean).join(" · "))}</p></li>`;
       }).join("");
-      return `<section class="day" aria-label="${esc(fmtDay(d.date, { weekday: "long", month: "long", day: "numeric" }))}">
+      return `<section class="day"${dayAttr(d.date)} aria-label="${esc(fmtDay(d.date, { weekday: "long", month: "long", day: "numeric" }))}">
         ${dayHeadHTML(d.date, d.areas.length ? `<p class="day-title">${esc(d.areas.join(" · "))}</p>` : "")}
         <p class="day-stats">${esc(bits.join(" · "))}</p>
         ${rows.length ? `<ol class="day-list">${rows.join("")}</ol>` : `<p class="day-empty">A free day: nothing rated 4.0+ fits here.</p>`}
@@ -1980,12 +2024,51 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
   const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
   function renderMapView() {
-    const legend = TIER_ORDER.map((t) => `<li><span class="dot${t === "wait" ? " wait" : ""}"${t === "wait" ? "" : ` style="background:var(--v-${t})"`}></span>${TIERS[t].name}</li>`).join("");
+    const btn = (mode, label) => `<button type="button" class="chip-btn" data-pin-color="${mode}" aria-pressed="${state.pinColor === mode}">${label}</button>`;
     return `<div class="map-wrap">
+      <div class="map-tools" role="group" aria-label="Color pins by"><span class="lbl">Color pins by</span>${btn("verdict", "Group verdict")}${btn("day", "Wanderlog day")}${btn("suggested", "Suggested day")}</div>
       <div class="map" id="map" role="region" aria-label="Map of the trip's places"></div>
-      <ul class="map-legend" aria-label="Pin colors show the group's verdict">${legend}</ul>
+      <ul class="map-legend" id="mapLegend" aria-label="${legendLabel()}">${mapLegendHTML()}</ul>
       <p class="side-note" id="mapNote"></p>
     </div>`;
+  }
+  const legendLabel = () => (state.pinColor === "verdict" ? "Pin colors show the group's verdict" : "Pin colors and numbers show the day");
+  const hasPin = (p) => Number.isFinite(p.lat) && Number.isFinite(p.lng);
+  const planName = () => (state.pinColor === "suggested" ? "suggested plan" : "Wanderlog plan");
+  const suggestedReady = () => !!window.POIPlan && tripDates().length > 0;
+  // The dates each place is on, in Wanderlog's plan ("day") or the suggested plan ("suggested").
+  function datesByPlace(source) {
+    const out = new Map();
+    const add = (id, date) => out.set(id, [...(out.get(id) || []), date]);
+    if (source === "suggested") { if (suggestedReady()) for (const d of suggestedPlan(tripDates()).days) for (const st of d.stops) add(st.id, d.date); }
+    else for (const p of places()) for (const s of p.scheduled) add(p.id, s.date);
+    return out;
+  }
+  // A place's day on the map: the first day it's on in that plan, or 0 when it isn't in the plan.
+  function pinDay(p, byPlace) {
+    const nums = (byPlace.get(p.id) || []).map(dayNum).filter((n) => n >= 1);
+    return nums.length ? Math.min(...nums) : 0;
+  }
+  // By day, the legend lists only the days that have a pin on the map (with the filters applied).
+  function mapLegendHTML() {
+    if (state.pinColor === "verdict") {
+      return TIER_ORDER.map((t) => `<li><span class="dot${t === "wait" ? " wait" : ""}"${t === "wait" ? "" : ` style="background:var(--v-${t})"`}></span>${TIERS[t].name}</li>`).join("");
+    }
+    if (state.pinColor === "suggested" && !suggestedReady()) return `<li>The suggested plan needs the trip's dates. Add them in Wanderlog.</li>`;
+    const byPlace = datesByPlace(state.pinColor);
+    const shown = new Set(places().filter((p) => inList(p) && hasPin(p)).map((p) => pinDay(p, byPlace)));
+    return [...shown].filter((n) => n >= 1).sort((a, b) => a - b)
+      .map((n) => `<li>${dayDot(n)}${esc(fmtDay(dateOfDay(n), { weekday: "short", month: "short", day: "numeric" }))}</li>`).join("")
+      + (shown.has(0) ? `<li><span class="dot wait"></span>Not in the ${planName()}</li>` : "");
+  }
+  function setPinColor(mode) {
+    if (mode === state.pinColor) return;
+    state.pinColor = mode;
+    lsSet("tripRanker.pinColor", mode);
+    document.querySelectorAll("[data-pin-color]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.pinColor === mode)));
+    const legend = $("#mapLegend");
+    if (legend) { legend.innerHTML = mapLegendHTML(); legend.setAttribute("aria-label", legendLabel()); }
+    refreshMap(false);
   }
 
   function popupHTML(p) {
@@ -1995,6 +2078,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
       <h3>${esc(p.name)}</h3>
       ${metaHTML(p, true)}
       ${badgesHTML(p) ? `<div class="badges">${badgesHTML(p)}</div>` : ""}
+      ${scheduledHTML(p)}
       ${groupHeadHTML(s)}
       ${votesListHTML(p)}
       <div class="links"><button type="button" data-goto="${esc(p.id)}">See details & rate</button><a href="${esc(mapsUrl(p))}" target="_blank" rel="noopener">Google Maps ↗</a></div>
@@ -2050,6 +2134,16 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
         },
         layout: { "circle-sort-key": ["get", "rank"] },
       });
+      // Day numbers on the pins (only pins with a label: a plan's days when coloring by day)
+      map.addLayer({
+        id: "place-nums", type: "symbol", source: "places",
+        filter: ["!=", ["get", "label"], ""],
+        layout: {
+          "text-field": ["get", "label"], "text-font": ["Noto Sans Bold"], "text-size": 11,
+          "text-allow-overlap": true, "text-ignore-placement": true, "symbol-sort-key": ["get", "rank"],
+        },
+        paint: { "text-color": ["get", "ink"] },
+      });
       map.on("click", "places", (e) => openPin(e.features[0].properties.id));
       map.on("mouseenter", "places", (e) => {
         map.getCanvas().style.cursor = "pointer";
@@ -2074,39 +2168,51 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     state.map.openId = id;
   }
 
-  // Pins colored by the group's verdict; "Must go" pins are the biggest and drawn on top.
+  // Pins colored by the group's verdict ("Must go" pins biggest and drawn on top), or by a plan's days: numbered pins in
+  // the day's color, with places that aren't in that plan small and hollow.
   function refreshMap(fit) {
     if (!state.map) return;
     const { map } = state.map;
     const source = map.getSource("places");
     if (!source) return; // style still loading; the load handler draws the pins
     const shown = places().filter(inList);
-    const pts = shown.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+    const pts = shown.filter(hasPin);
+    const byDay = state.pinColor !== "verdict";
+    const byPlace = byDay ? datesByPlace(state.pinColor) : null;
     // A ring that contrasts with the map: white on the light style, light ink on the dark one.
     const surface = cssVar("--surface"), muted = cssVar("--muted"), ring = isDark() ? cssVar("--ink") : "#ffffff";
     source.setData({
       type: "FeatureCollection",
       features: pts.map((p) => {
-        const t = stats(p).tier;
-        return {
-          type: "Feature",
-          geometry: { type: "Point", coordinates: [p.lng, p.lat] },
-          properties: {
-            id: p.id, name: p.name, rank: TIER_ORDER.length - TIER_ORDER.indexOf(t),
+        let pin;
+        if (byDay) {
+          const n = pinDay(p, byPlace);
+          pin = n
+            ? { rank: 1000 - n, radius: 10, fill: cssVar(daySlot(n)), ring, ringWidth: 2, label: String(n), ink: cssVar(`${daySlot(n)}-on`) }
+            : { rank: 0, radius: 5, fill: surface, ring: muted, ringWidth: 1.5, label: "" };
+        } else {
+          const t = stats(p).tier;
+          pin = {
+            rank: TIER_ORDER.length - TIER_ORDER.indexOf(t),
             radius: t === "must" ? 10 : t === "def" ? 8.5 : t === "wait" ? 6 : 7,
             fill: t === "wait" ? surface : cssVar(`--v-${t}`),
             ring: t === "wait" ? muted : ring,
             ringWidth: t === "wait" ? 1.5 : 2,
-          },
-        };
+            label: "",
+          };
+        }
+        return { type: "Feature", geometry: { type: "Point", coordinates: [p.lng, p.lat] }, properties: { id: p.id, name: p.name, ...pin } };
       }),
     });
     if (state.map.openId && state.map.popup) {
       const p = places().find((x) => x.id === state.map.openId);
       if (p) state.map.popup.setHTML(`<div class="pop-wrap">${popupHTML(p)}</div>`);
     }
+    const legend = $("#mapLegend");
+    if (legend) legend.innerHTML = mapLegendHTML();
     const note = $("#mapNote");
-    if (note) note.textContent = `${pts.length} of ${places().length} places shown${shown.length < places().length ? " (filters apply)" : ""}. Tap a pin for details.`;
+    const planned = byDay ? `, ${pts.filter((p) => pinDay(p, byPlace)).length} in the ${planName()}` : "";
+    if (note) note.textContent = `${pts.length} of ${places().length} places shown${shown.length < places().length ? " (filters apply)" : ""}${planned}. Tap a pin for details.`;
     if (fit && pts.length) {
       const lngs = pts.map((p) => p.lng), lats = pts.map((p) => p.lat);
       map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { padding: 40, maxZoom: 14, duration: 0 });
@@ -2427,6 +2533,8 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     if (top) return toggleTop(top.closest("[data-id]").dataset.id);
     if (e.target.closest("[data-switch]")) return openWho();
     if (e.target.closest("[data-reset]")) return resetMyVotes();
+    const pc = e.target.closest("[data-pin-color]");
+    if (pc) return setPinColor(pc.dataset.pinColor);
     const mode = e.target.closest("[data-days-mode]");
     if (mode) { state.daysMode = mode.dataset.daysMode; lsSet("poi.daysMode", state.daysMode); return render(); }
     const go = e.target.closest("[data-goto]");
@@ -2436,6 +2544,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     const row = e.target.closest("[data-id]");
     if (!row) return;
     if (e.target.matches("[data-booked]")) saveSpot(row.dataset.id, { booked: e.target.checked });
+    if (e.target.matches("[data-visited]")) setVisited(row.dataset.id, e.target.checked, e.target);
     if (e.target.matches("[data-note]")) saveSpot(row.dataset.id, { note: e.target.value.trim().slice(0, 200) });
   });
   $("#main").addEventListener("focusout", (e) => {

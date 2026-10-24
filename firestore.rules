@@ -82,12 +82,14 @@ service cloud.firestore {
 
     function validTitle(t) { return t is string && t.size() > 0 && t.size() <= 80; }
 
-    // A voter: their 1-5 scores, their must-gos (up to five place ids), and their color slot (0-7) on the trip.
+    // A voter: their 1-5 scores, their must-gos (up to five place ids), the places they've visited, and their color
+    // slot (0-7) on the trip.
     function validVoter(d) {
-      return d.keys().hasOnly(['name', 'scores', 'top', 'color', 'updatedAt'])
+      return d.keys().hasOnly(['name', 'scores', 'top', 'visited', 'color', 'updatedAt'])
         && d.name is string && d.name.size() > 0 && d.name.size() <= 30
         && d.scores is map && d.scores.size() <= 1000
         && (!('top' in d) || (d.top is list && d.top.size() <= 5))
+        && (!('visited' in d) || (d.visited is map && d.visited.size() <= 1000))
         && (!('color' in d) || (d.color is int && d.color >= 0 && d.color < 8))
         && (!('updatedAt' in d) || d.updatedAt is timestamp);
     }
