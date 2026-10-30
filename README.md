@@ -30,9 +30,14 @@ Each trip has:
     - Spots rated 3.0–3.9 are listed as optional near each day's route.
     - It updates as people vote.
   - **Wanderlog's plan**: Wanderlog's own itinerary, every day of the trip.
+- **Find a place** (the search box on All spots and Itinerary): type part of a place's name or type (accents don't
+  matter) to see only the matches. On the Itinerary it shows the days each match is on, with its time. The search
+  carries over between the two tabs.
 - **Map**: every place as a pin (OpenFreeMap styles via MapLibre, no API key). **Color pins by** switches between the
   group's verdict, Wanderlog's days, and the suggested plan's days: numbered pins in that day's color, with places not
-  in the plan small and hollow.
+  in the plan small and hollow. By day, tap a day in the legend to hide or show its pins (or **Show all** / **Hide all**);
+  the map zooms to what's left. With only one day showing, its pins are numbered in the order of that day's stops on
+  the Itinerary tab (Wanderlog's plan or the suggested one, whichever the pins are colored by).
 - **Summary** (side panel): totals by type (restaurants, cafés & bakeries, bars, sights…), the group's verdict,
   and who has voted.
 - **Who's voting?** (tap your name at the top): switch names or join. Planners can also pick a name and remove that

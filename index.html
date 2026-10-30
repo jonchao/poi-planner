@@ -19,7 +19,8 @@
    whole-trip totals. Below 1100px the summary becomes a slide-over panel opened from the bar.
    Views: "All spots" is one card per place (photo, short description, your 1-5 rating, everyone's scores),
    "Group picks" ranks places into tiers, "Reservations" lists what still needs booking, "Itinerary" is a suggested
-   walkable day-by-day plan built from the ratings (suggest.js) or Wanderlog's own plan, "Map" pins every place. */
+   walkable day-by-day plan built from the ratings (suggest.js) or Wanderlog's own plan, "Map" pins every place.
+   "All spots" and "Itinerary" share a Find a place search box; by day, the map's legend switches days on and off. */
 :root {
   /* Travel palette: sky and sea for the page and the group's verdict, sunset for your own ratings. */
   --bg: #f1f6fa;
@@ -162,6 +163,16 @@ app-switcher { color: var(--ink); --app-switcher-hover-bg: var(--surface-2); }
 .tools select { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 5px 8px; font-size: 13.5px; }
 .toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--muted); white-space: nowrap; }
 .toggle input { width: 16px; height: 16px; accent-color: var(--accent); margin: 0; }
+/* Find a place (All spots and Itinerary): a search box on its own line at the top of the filters */
+.search { position: relative; display: flex; align-items: center; flex: 1 1 100%; }
+.search > svg { position: absolute; left: 11px; width: 17px; height: 17px; color: var(--muted); pointer-events: none; }
+.search input { width: 100%; -webkit-appearance: none; appearance: none; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 7px 38px 7px 35px; font-size: 16px; /* 16px: iOS zooms in on smaller inputs */ }
+.search input::placeholder { color: var(--muted); }
+.search input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+.search-clear { position: absolute; right: 4px; display: grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 8px; background: none; color: var(--muted); }
+.search-clear:hover { background: var(--surface-2); color: var(--ink); }
+.search-clear svg { width: 16px; height: 16px; }
+.filters.search-only > :not(.search) { display: none; } /* Itinerary: the list filters don't apply there */
 
 main { padding: 16px 0 40px; }
 .banner { margin: 12px 0 0; padding: 10px 14px; border-radius: 10px; background: var(--hot-soft); color: var(--hot); font-size: 14px; }
@@ -361,6 +372,16 @@ details.walkins p { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
 .map-legend li { display: inline-flex; align-items: center; gap: 6px; }
 .map-legend .dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--line); }
 .map-legend .dot.wait { background: var(--surface); border: 1.5px dashed var(--muted); box-shadow: none; }
+/* By day, each day in the legend is a toggle that shows or hides its pins */
+.map-legend:has(.day-toggle) { gap: 6px 8px; }
+.map-legend .map-days-act { gap: 12px; margin-right: 4px; font-size: 13px; }
+.map-days-act .link-btn { color: var(--accent); }
+.day-toggle { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 3px 10px 3px 4px; font-size: 13px; white-space: nowrap; }
+.day-toggle:hover { border-color: var(--muted); }
+.day-toggle .dot { margin-left: 3px; }
+.day-toggle[aria-pressed="false"] { background: transparent; border-style: dashed; color: var(--muted); }
+.day-toggle[aria-pressed="false"] .day-dot { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1.5px var(--dc); }
+.day-toggle[aria-pressed="false"] .dot { opacity: .5; }
 .map .maplibregl-canvas { outline: none; }
 .map .maplibregl-ctrl-group { background: #fff; box-shadow: var(--shadow); border-radius: 10px; } /* white in both themes: the zoom icons are dark */
 .map .maplibregl-ctrl-attrib { font-size: 11px; }
@@ -619,6 +640,13 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
           </button>
         </div>
         <div class="filters">
+          <div class="search" id="searchBox" role="search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+            <input type="search" id="searchInput" placeholder="Find a place" aria-label="Find a place by name or type" autocomplete="off" spellcheck="false" enterkeyhint="search">
+            <button class="search-clear" id="searchClear" type="button" aria-label="Clear search" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
+          </div>
           <button class="voter-chip" id="voterChip" type="button"></button>
           <div class="chips" id="listChips" role="group" aria-label="Filters"></div>
           <div class="tools" id="spotTools">
@@ -756,6 +784,8 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     tripId: null, plan: null, board: null, boardKey: "", months: [],
     voters: [], spots: {}, me: null,
     view: "spots", list: "all", kind: null, sort: "list", unratedOnly: false,
+    query: "", // Find a place (All spots and Itinerary)
+    mapHidden: new Set(), // map by day: the day numbers switched off, and 0 for places not in the plan
     pendingRender: false, map: null,
     daysMode: lsGet("poi.daysMode") === "wanderlog" ? "wanderlog" : "suggested", // Itinerary tab: our plan or Wanderlog's
     pinColor: ["day", "suggested"].includes(lsGet("tripRanker.pinColor")) ? lsGet("tripRanker.pinColor") : "verdict", // map pins: verdict, or a plan's days
@@ -1231,7 +1261,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     stopTrip();
     Object.assign(state, {
       tripId: id, plan: null, board: null, boardKey: "", months: [], voters: [], spots: {},
-      view: "spots", list: "all", kind: null, sort: "list", unratedOnly: false,
+      view: "spots", list: "all", kind: null, sort: "list", unratedOnly: false, query: "", mapHidden: new Set(),
       votersLoaded: false, greeted: false, wanderlogLink: null,
     });
     loadWanderlogLink(id);
@@ -1450,6 +1480,12 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
 
   const places = () => state.board?.places || [];
   const inList = (p) => (state.list === "all" || p.lists.includes(state.list)) && (!state.kind || (p.kind || "other") === state.kind);
+  // Find a place: every word typed must be in the place's name or category, ignoring case and accents ("cafe" finds "Café").
+  const fold = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const searchTerms = () => fold(state.query).split(/\s+/).filter(Boolean);
+  const matches = (p, terms) => { const text = fold(`${p.name} ${p.category || ""}`); return terms.every((t) => text.includes(t)); };
+  const quotedQuery = () => `“${esc(state.query.trim())}”`;
+  const noMatchHTML = (where) => `<div class="empty-note">Nothing ${where} matches ${quotedQuery()}. <button type="button" class="link-btn" data-view-spots>Look in All spots</button></div>`;
   const orderedVoters = () => {
     const me = state.me?.id;
     return [...state.voters].sort((a, b) => (a.id === me ? -1 : b.id === me ? 1 : a.name.localeCompare(b.name)));
@@ -1678,11 +1714,16 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     const rated = all.filter((p) => myScore(p.id)).length;
     let shown = all.filter(inList);
     if (state.unratedOnly) shown = shown.filter((p) => !myScore(p.id));
-    const progress = state.me
+    const filtered = shown.length < all.length;
+    const terms = searchTerms();
+    if (terms.length) shown = shown.filter((p) => matches(p, terms));
+    const progress = (state.me
       ? `<div class="progress" id="progress"><span>${progressText()}</span><div class="track"><div class="fill" style="width:${(rated / all.length) * 100}%"></div></div></div>`
-      : `<p class="intro">Tap <b>${state.voters.length ? "Pick your name" : "Join"}</b> at the top to start rating. Scores: 1 skip it · 2 meh · 3 sure · 4 want to · 5 love it. Pick up to ${TOP_MAX} must-gos for your Top 5.</p>`;
+      : `<p class="intro">Tap <b>${state.voters.length ? "Pick your name" : "Join"}</b> at the top to start rating. Scores: 1 skip it · 2 meh · 3 sure · 4 want to · 5 love it. Pick up to ${TOP_MAX} must-gos for your Top 5.</p>`)
+      + (terms.length && shown.length ? `<p class="intro">${shown.length} spot${shown.length === 1 ? " matches" : "s match"} ${quotedQuery()}${filtered ? " with these filters" : ""}.</p>` : "");
 
     if (!shown.length) {
+      if (terms.length) return progress + `<div class="empty-note">No spots match ${quotedQuery()}${filtered ? " with these filters" : ""}. <button type="button" class="link-btn" data-clear-search>Clear the search</button></div>`;
       return progress + `<div class="empty-note">${state.unratedOnly ? "You've rated everything here. Nice." : "Nothing in this list yet."}</div>`;
     }
     if (state.sort === "list") {
@@ -1875,17 +1916,29 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     dates.sort();
     if (!dates.length) return `<div class="empty-note">Wanderlog doesn't have a day-by-day plan for this trip yet. Add places to days in Wanderlog's itinerary and they'll show up here.</div>`;
     const byId = new Map(places().map((p) => [p.id, p]));
-    const planned = [...byDate.values()].reduce((n, d) => n + d.items.filter((it) => it.placeId && byId.has(it.placeId)).length, 0);
-    return `<p class="intro">Wanderlog's day-by-day plan: ${planned} place${planned === 1 ? "" : "s"} across ${dates.length} day${dates.length === 1 ? "" : "s"}. Plan days in Wanderlog; they show up here after the next refresh.</p>
-      <div class="days">${dates.map((date) => {
-        const d = byDate.get(date);
-        const items = (d?.items || []).map((it) => itineraryItemHTML(it, byId)).join("");
-        return `<section class="day"${dayAttr(date)} aria-label="${esc(fmtDay(date, { weekday: "long", month: "long", day: "numeric" }))}">
+    const isPlace = (it) => it.placeId && byId.has(it.placeId);
+    const planned = [...byDate.values()].reduce((n, d) => n + d.items.filter(isPlace).length, 0);
+    // Searching: only the days with a matching place, and only those places (no notes).
+    const terms = searchTerms();
+    const hit = (it) => isPlace(it) && matches(byId.get(it.placeId), terms);
+    let hits = 0;
+    const days = dates.map((date) => {
+      const d = byDate.get(date);
+      const list = terms.length ? (d?.items || []).filter(hit) : d?.items || [];
+      hits += list.length;
+      if (terms.length && !list.length) return "";
+      const items = list.map((it) => itineraryItemHTML(it, byId)).join("");
+      return `<section class="day"${dayAttr(date)} aria-label="${esc(fmtDay(date, { weekday: "long", month: "long", day: "numeric" }))}">
           ${dayHeadHTML(date, d?.title ? `<p class="day-title">${esc(d.title)}</p>` : "")}
-          ${d?.note ? `<p class="day-note">${esc(d.note)}</p>` : ""}
+          ${d?.note && !terms.length ? `<p class="day-note">${esc(d.note)}</p>` : ""}
           ${items ? `<ol class="day-list">${items}</ol>` : `<p class="day-empty">Nothing planned yet</p>`}
         </section>`;
-      }).join("")}</div>`;
+    }).join("");
+    if (terms.length && !hits) return noMatchHTML("on Wanderlog's plan");
+    const intro = terms.length
+      ? `${hits} stop${hits === 1 ? " matches" : "s match"} ${quotedQuery()} on Wanderlog's plan.`
+      : `Wanderlog's day-by-day plan: ${planned} place${planned === 1 ? "" : "s"} across ${dates.length} day${dates.length === 1 ? "" : "s"}. Plan days in Wanderlog; they show up here after the next refresh.`;
+    return `<p class="intro">${intro}</p><div class="days">${days}</div>`;
   }
 
   /* ---------- View: suggested plan (built by suggest.js from the ratings, opening hours and walking distance) ---------- */
@@ -1970,12 +2023,18 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     const noHours = !places().some((p) => Array.isArray(p.hours));
     const intro = `<p class="intro">Built from the group's ratings: the ${stops} spot${stops === 1 ? "" : "s"} rated 4.0 or higher (and every Must go) over ${dates.length} days. Each day stays in one part of town so you can walk between stops, and each stop is timed for when it's open. Wanderlog bookings keep their day and time, and the first and last days are kept light for travel.${optional ? ` Spots rated 3.0–3.9 are listed as optional near where you'll be.` : ""} The plan updates as people vote.${noHours ? " <b>Opening hours arrive with the next Wanderlog refresh</b>; until then, times assume typical hours." : ""}</p>`;
 
+    // Searching: only the days with a matching stop or optional spot, and only those, without the walks and free time
+    // between stops (they'd describe stops that aren't shown).
+    const terms = searchTerms();
+    const hit = (id) => !terms.length || (byId.has(id) && matches(byId.get(id), terms));
+    let hits = 0;
     const days = plan.days.map((d) => {
       const rows = [];
       let prevEnd = null;
       for (const stop of d.stops) {
         const p = byId.get(stop.id);
-        if (!p) continue;
+        if (!p || !hit(stop.id)) continue;
+        if (terms.length) { rows.push(stopHTML(stop, p)); continue; }
         if (prevEnd !== null && stop.start !== null) {
           const free = stop.start - (prevEnd + (stop.leg ? stop.leg.min : 0));
           if (free >= 120) {
@@ -1993,7 +2052,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
       if (d.rides) bits.push(`${d.rides} ride${d.rides === 1 ? "" : "s"}`);
       if (d.light === "arrive") bits.push("Arrival day, from mid-afternoon");
       if (d.light === "leave") bits.push("Departure day, until mid-afternoon");
-      const opt = d.optional.map((o) => {
+      const opts = d.optional.filter((o) => hit(o.id)).map((o) => {
         const p = byId.get(o.id), near = byId.get(o.near);
         if (!p || !near) return "";
         const s = stats(p);
@@ -2001,21 +2060,31 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
         const hours = hoursText(o.hours);
         return `<li><button class="pname" type="button" data-goto="${esc(p.id)}">${esc(p.name)}</button>
           <p class="meta">${esc([p.category, `${s.avg.toFixed(1)} avg`, how, hours].filter(Boolean).join(" · "))}</p></li>`;
-      }).join("");
+      }).filter(Boolean);
+      if (terms.length) {
+        hits += rows.length + opts.length;
+        if (!rows.length && !opts.length) return "";
+      }
       return `<section class="day"${dayAttr(d.date)} aria-label="${esc(fmtDay(d.date, { weekday: "long", month: "long", day: "numeric" }))}">
         ${dayHeadHTML(d.date, d.areas.length ? `<p class="day-title">${esc(d.areas.join(" · "))}</p>` : "")}
-        <p class="day-stats">${esc(bits.join(" · "))}</p>
-        ${rows.length ? `<ol class="day-list">${rows.join("")}</ol>` : `<p class="day-empty">A free day: nothing rated 4.0+ fits here.</p>`}
-        ${opt ? `<div class="opt"><h3>Optional nearby · rated 3.0–3.9</h3><ul>${opt}</ul></div>` : ""}
+        ${terms.length ? "" : `<p class="day-stats">${esc(bits.join(" · "))}</p>`}
+        ${rows.length ? `<ol class="day-list">${rows.join("")}</ol>` : terms.length ? "" : `<p class="day-empty">A free day: nothing rated 4.0+ fits here.</p>`}
+        ${opts.length ? `<div class="opt"><h3>Optional nearby · rated 3.0–3.9</h3><ul>${opts.join("")}</ul></div>` : ""}
       </section>`;
     }).join("");
 
-    const unplaced = plan.unplaced.map((u) => {
+    const unplacedHits = plan.unplaced.filter((u) => byId.has(u.id) && hit(u.id));
+    const unplaced = unplacedHits.map((u) => {
       const p = byId.get(u.id);
-      return p ? `<li><button class="pname" type="button" data-goto="${esc(p.id)}">${esc(p.name)}</button> <span class="why">· ${esc(u.why)}</span></li>` : "";
+      return `<li><button class="pname" type="button" data-goto="${esc(p.id)}">${esc(p.name)}</button> <span class="why">· ${esc(u.why)}</span></li>`;
     }).join("");
-    return intro + `<div class="days">${days}</div>`
-      + (unplaced ? `<section class="book-sec unplaced"><h2>Didn't fit <span class="n">${plan.unplaced.length}</span></h2><p>Rated 4.0 or higher, but the plan couldn't place them.</p><ul>${unplaced}</ul></section>` : "");
+    if (terms.length) {
+      hits += unplacedHits.length;
+      if (!hits) return noMatchHTML("on the suggested plan");
+    }
+    return (terms.length ? `<p class="intro">${hits} spot${hits === 1 ? " matches" : "s match"} ${quotedQuery()} on the suggested plan.</p>` : intro)
+      + `<div class="days">${days}</div>`
+      + (unplaced ? `<section class="book-sec unplaced"><h2>Didn't fit <span class="n">${unplacedHits.length}</span></h2><p>Rated 4.0 or higher, but the plan couldn't place them.</p><ul>${unplaced}</ul></section>` : "");
   }
 
   /* ---------- View: map ---------- */
@@ -2032,7 +2101,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
       <p class="side-note" id="mapNote"></p>
     </div>`;
   }
-  const legendLabel = () => (state.pinColor === "verdict" ? "Pin colors show the group's verdict" : "Pin colors and numbers show the day");
+  const legendLabel = () => (state.pinColor === "verdict" ? "Pin colors show the group's verdict" : "Days on the map: tap a day to show or hide its pins");
   const hasPin = (p) => Number.isFinite(p.lat) && Number.isFinite(p.lng);
   const planName = () => (state.pinColor === "suggested" ? "suggested plan" : "Wanderlog plan");
   const suggestedReady = () => !!window.POIPlan && tripDates().length > 0;
@@ -2044,32 +2113,74 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     else for (const p of places()) for (const s of p.scheduled) add(p.id, s.date);
     return out;
   }
-  // A place's day on the map: the first day it's on in that plan, or 0 when it isn't in the plan.
+  // The days a place is on in that plan, as day numbers (dates before the trip don't count).
+  const placeDays = (p, byPlace) => [...new Set((byPlace.get(p.id) || []).map(dayNum).filter((n) => n >= 1))].sort((a, b) => a - b);
+  // A place's day on the map: the first of its days that's switched on, 0 when it isn't in the plan, or null when its
+  // pin is hidden (all its days are off, or "Not in the plan" is).
   function pinDay(p, byPlace) {
-    const nums = (byPlace.get(p.id) || []).map(dayNum).filter((n) => n >= 1);
-    return nums.length ? Math.min(...nums) : 0;
+    const nums = placeDays(p, byPlace);
+    if (!nums.length) return state.mapHidden.has(0) ? null : 0;
+    return nums.find((n) => !state.mapHidden.has(n)) ?? null;
   }
-  // By day, the legend lists only the days that have a pin on the map (with the filters applied).
+  // Each place's position in a day's list on the Itinerary tab (1 = first stop), in the suggested plan or Wanderlog's.
+  function stopOrder(source, n) {
+    const date = dateOfDay(n);
+    const ids = source === "suggested"
+      ? (suggestedPlan(tripDates()).days.find((d) => d.date === date)?.stops || []).map((s) => s.id)
+      : (new Map((state.board.itinerary || []).map((d) => [d.date, d])).get(date)?.items || []).map((it) => it.placeId);
+    const known = new Set(places().map((p) => p.id));
+    const out = new Map();
+    for (const id of ids) if (id && known.has(id) && !out.has(id)) out.set(id, out.size + 1);
+    return out;
+  }
+  // By day, the legend lists the days that have a pin (with the filters applied), each a toggle that shows or hides them.
   function mapLegendHTML() {
     if (state.pinColor === "verdict") {
       return TIER_ORDER.map((t) => `<li><span class="dot${t === "wait" ? " wait" : ""}"${t === "wait" ? "" : ` style="background:var(--v-${t})"`}></span>${TIERS[t].name}</li>`).join("");
     }
     if (state.pinColor === "suggested" && !suggestedReady()) return `<li>The suggested plan needs the trip's dates. Add them in Wanderlog.</li>`;
     const byPlace = datesByPlace(state.pinColor);
-    const shown = new Set(places().filter((p) => inList(p) && hasPin(p)).map((p) => pinDay(p, byPlace)));
-    return [...shown].filter((n) => n >= 1).sort((a, b) => a - b)
-      .map((n) => `<li>${dayDot(n)}${esc(fmtDay(dateOfDay(n), { weekday: "short", month: "short", day: "numeric" }))}</li>`).join("")
-      + (shown.has(0) ? `<li><span class="dot wait"></span>Not in the ${planName()}</li>` : "");
+    const pts = places().filter((p) => inList(p) && hasPin(p));
+    const toggle = (n, label, html) => `<li><button type="button" class="day-toggle" data-map-day="${n}" aria-pressed="${!state.mapHidden.has(n)}" aria-label="${esc(label)}">${html}</button></li>`;
+    const items = [...new Set(pts.flatMap((p) => placeDays(p, byPlace)))].sort((a, b) => a - b).map((n) => {
+      const date = fmtDay(dateOfDay(n), { weekday: "short", month: "short", day: "numeric" });
+      return toggle(n, `Day ${n}, ${date}`, `${dayDot(n)}${esc(date)}`);
+    });
+    if (pts.some((p) => !placeDays(p, byPlace).length)) items.push(toggle(0, `Not in the ${planName()}`, `<span class="dot wait"></span>Not in the ${planName()}`));
+    const act = items.length > 1 ? `<li class="map-days-act"><button type="button" class="link-btn" data-map-days="all">Show all</button><button type="button" class="link-btn" data-map-days="none">Hide all</button></li>` : "";
+    return act + items.join("");
+  }
+  // Redraws the legend, keeping keyboard focus on the toggle that had it.
+  function updateLegend() {
+    const legend = $("#mapLegend");
+    if (!legend) return;
+    const f = document.activeElement;
+    const key = legend.contains(f) ? f.getAttribute("data-map-day") ?? f.getAttribute("data-map-days") : null;
+    legend.innerHTML = mapLegendHTML();
+    legend.setAttribute("aria-label", legendLabel());
+    if (key !== null) legend.querySelector(`[data-map-day="${key}"], [data-map-days="${key}"]`)?.focus();
   }
   function setPinColor(mode) {
     if (mode === state.pinColor) return;
     state.pinColor = mode;
     lsSet("tripRanker.pinColor", mode);
     document.querySelectorAll("[data-pin-color]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.pinColor === mode)));
-    const legend = $("#mapLegend");
-    if (legend) { legend.innerHTML = mapLegendHTML(); legend.setAttribute("aria-label", legendLabel()); }
+    updateLegend();
     refreshMap(false);
   }
+  // Switching days on or off zooms the map to the pins left.
+  function setMapHidden(hidden) {
+    state.mapHidden = hidden;
+    updateLegend();
+    refreshMap("ease");
+  }
+  function toggleMapDay(n) {
+    const hidden = new Set(state.mapHidden);
+    if (!hidden.delete(n)) hidden.add(n);
+    setMapHidden(hidden);
+  }
+  // Hide all: every day of the trip (in either plan), and the places not in the plan.
+  const hideAllDays = () => setMapHidden(new Set([0, ...[...tripDates(), ...(state.board.itinerary || []).map((d) => d.date)].map(dayNum).filter((n) => n >= 1)]));
 
   function popupHTML(p) {
     const s = stats(p);
@@ -2169,7 +2280,9 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
   }
 
   // Pins colored by the group's verdict ("Must go" pins biggest and drawn on top), or by a plan's days: numbered pins in
-  // the day's color, with places that aren't in that plan small and hollow.
+  // the day's color, with places that aren't in that plan small and hollow. By day, only the days switched on are drawn,
+  // and when that leaves a single day, its pins are numbered in the order of that day's stops on the Itinerary tab.
+  // `fit` zooms to the pins: true jumps there, "ease" animates.
   function refreshMap(fit) {
     if (!state.map) return;
     const { map } = state.map;
@@ -2179,16 +2292,20 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     const pts = shown.filter(hasPin);
     const byDay = state.pinColor !== "verdict";
     const byPlace = byDay ? datesByPlace(state.pinColor) : null;
+    const dayOf = byDay ? new Map(pts.map((p) => [p.id, pinDay(p, byPlace)])) : null;
+    const drawn = byDay ? pts.filter((p) => dayOf.get(p.id) !== null) : pts;
+    const onDays = byDay ? [...new Set(drawn.map((p) => dayOf.get(p.id)).filter((n) => n >= 1))] : [];
+    const order = onDays.length === 1 ? stopOrder(state.pinColor, onDays[0]) : null;
     // A ring that contrasts with the map: white on the light style, light ink on the dark one.
     const surface = cssVar("--surface"), muted = cssVar("--muted"), ring = isDark() ? cssVar("--ink") : "#ffffff";
     source.setData({
       type: "FeatureCollection",
-      features: pts.map((p) => {
+      features: drawn.map((p) => {
         let pin;
         if (byDay) {
-          const n = pinDay(p, byPlace);
+          const n = dayOf.get(p.id), k = order?.get(p.id) || n;
           pin = n
-            ? { rank: 1000 - n, radius: 10, fill: cssVar(daySlot(n)), ring, ringWidth: 2, label: String(n), ink: cssVar(`${daySlot(n)}-on`) }
+            ? { rank: 1000 - k, radius: 10, fill: cssVar(daySlot(n)), ring, ringWidth: 2, label: String(k), ink: cssVar(`${daySlot(n)}-on`) }
             : { rank: 0, radius: 5, fill: surface, ring: muted, ringWidth: 1.5, label: "" };
         } else {
           const t = stats(p).tier;
@@ -2205,17 +2322,19 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
       }),
     });
     if (state.map.openId && state.map.popup) {
-      const p = places().find((x) => x.id === state.map.openId);
+      const p = drawn.find((x) => x.id === state.map.openId);
       if (p) state.map.popup.setHTML(`<div class="pop-wrap">${popupHTML(p)}</div>`);
+      else state.map.popup.remove(); // its pin was hidden
     }
-    const legend = $("#mapLegend");
-    if (legend) legend.innerHTML = mapLegendHTML();
+    updateLegend();
     const note = $("#mapNote");
-    const planned = byDay ? `, ${pts.filter((p) => pinDay(p, byPlace)).length} in the ${planName()}` : "";
-    if (note) note.textContent = `${pts.length} of ${places().length} places shown${shown.length < places().length ? " (filters apply)" : ""}${planned}. Tap a pin for details.`;
-    if (fit && pts.length) {
-      const lngs = pts.map((p) => p.lng), lats = pts.map((p) => p.lat);
-      map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { padding: 40, maxZoom: 14, duration: 0 });
+    const planned = byDay ? `, ${drawn.filter((p) => dayOf.get(p.id)).length} in the ${planName()}` : "";
+    const numbered = order ? ` Numbers show the order of Day ${onDays[0]}'s stops in the ${planName()}.` : "";
+    if (note) note.textContent = `${drawn.length} of ${places().length} places shown${shown.length < places().length ? " (filters apply)" : ""}${drawn.length < pts.length ? " (some days hidden)" : ""}${planned}.${numbered} Tap a pin for details.`;
+    if (fit && drawn.length) {
+      const lngs = drawn.map((p) => p.lng), lats = drawn.map((p) => p.lat);
+      const ease = fit === "ease" && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+      map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { padding: 40, maxZoom: 14, duration: ease ? 500 : 0 });
     }
   }
   function destroyMap() {
@@ -2369,7 +2488,10 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     }
     document.querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-selected", String(t.dataset.view === state.view)));
     $("#spotTools").hidden = state.view !== "spots";
-    $(".filters").hidden = state.view === "days";
+    $(".filters").classList.toggle("search-only", state.view === "days");
+    $("#searchBox").hidden = state.view !== "spots" && state.view !== "days";
+    if ($("#searchInput").value !== state.query) $("#searchInput").value = state.query;
+    $("#searchClear").hidden = !state.query;
     $("#sortSel").value = state.sort;
     $("#unratedOnly").checked = state.unratedOnly;
     renderChips();
@@ -2394,6 +2516,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     state.sort = "list";
     state.unratedOnly = false;
     const target = places().find((p) => p.id === id);
+    if (target && !matches(target, searchTerms())) state.query = "";
     if (state.list !== "all" && !target?.lists.includes(state.list)) state.list = "all";
     if (state.kind && (target?.kind || "other") !== state.kind) state.kind = null;
     render();
@@ -2526,6 +2649,21 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
   $("#sortSel").addEventListener("change", (e) => { state.sort = e.target.value; render(); });
   $("#unratedOnly").addEventListener("change", (e) => { state.unratedOnly = e.target.checked; render(); });
 
+  // Find a place: filters as you type. The box sits in the sticky bar, outside what render() replaces, so it keeps focus.
+  function setQuery(q) {
+    if (q === state.query) return;
+    state.query = q;
+    render();
+    const top = $(".col-main").getBoundingClientRect().top + window.scrollY;
+    if (window.scrollY > top) window.scrollTo(0, top); // scrolled down the list: back to its top, where the results are
+  }
+  $("#searchInput").addEventListener("input", (e) => setQuery(e.target.value));
+  $("#searchInput").addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && state.query) { e.preventDefault(); setQuery(""); }
+    if (e.key === "Enter") e.target.blur(); // phones: put the keyboard away to see the results
+  });
+  $("#searchClear").addEventListener("click", () => { setQuery(""); $("#searchInput").focus(); });
+
   $("#main").addEventListener("click", (e) => {
     const rate = e.target.closest("[data-rate]");
     if (rate) return setScore(rate.closest("[data-id]").dataset.id, Number(rate.dataset.rate));
@@ -2535,6 +2673,12 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     if (e.target.closest("[data-reset]")) return resetMyVotes();
     const pc = e.target.closest("[data-pin-color]");
     if (pc) return setPinColor(pc.dataset.pinColor);
+    const md = e.target.closest("[data-map-day]");
+    if (md) return toggleMapDay(Number(md.dataset.mapDay));
+    const mds = e.target.closest("[data-map-days]");
+    if (mds) return mds.dataset.mapDays === "all" ? setMapHidden(new Set()) : hideAllDays();
+    if (e.target.closest("[data-clear-search]")) return setQuery("");
+    if (e.target.closest("[data-view-spots]")) { state.view = "spots"; return render(); }
     const mode = e.target.closest("[data-days-mode]");
     if (mode) { state.daysMode = mode.dataset.daysMode; lsSet("poi.daysMode", state.daysMode); return render(); }
     const go = e.target.closest("[data-goto]");
