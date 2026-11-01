@@ -710,6 +710,16 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
   <div class="dlg-actions" style="margin-top:14px"><button class="btn ghost" type="button" data-close>Done</button></div>
 </dialog>
 
+<!-- Refresh now, tapped by someone who isn't signed in as a planner on this device: sign in right here -->
+<dialog class="dlg" id="refreshDlg" aria-labelledby="refreshTitle">
+  <h2 id="refreshTitle">Refresh from Wanderlog</h2>
+  <p id="refreshBody"></p>
+  <div class="dlg-actions">
+    <button class="btn ghost" type="button" data-close>Cancel</button>
+    <button class="btn" id="refreshSignIn" type="button">Sign in with Google</button>
+  </div>
+</dialog>
+
 <!-- Confirm / ask: filled in by askDialog() -->
 <dialog class="dlg" id="askDlg" aria-labelledby="askTitle">
   <h2 id="askTitle"></h2>
@@ -968,6 +978,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     await loadTeam();
     state.authReady = true;
     route();
+    resumeRefresh(); // signed in from a trip's Refresh now
   });
   window.addEventListener("hashchange", route);
 
@@ -2444,7 +2455,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
       : plan.syncedAt ? `Refreshed from Wanderlog ${ago(plan.syncedAt)}` : "";
     const bits = [fmtRange(plan.startDate, plan.endDate), daysToGo(), state.board ? `${places().length} spots` : "", sync].filter(Boolean).map(esc);
     $("#tripSub").innerHTML = bits.join(" · ")
-      + (state.isPlanner && plan.status !== "pending" ? ` · <button class="link-btn" type="button" id="refreshBtn">Refresh now</button>` : "")
+      + (plan.status !== "pending" ? ` · <button class="link-btn" type="button" id="refreshBtn">Refresh now</button>` : "") // everyone: see refreshNow()
       + (state.isPlanner && state.wanderlogLink ? ` · <a class="link-btn" href="${esc(state.wanderlogLink)}" target="_blank" rel="noopener">Open in Wanderlog ↗</a>` : "");
     $("#backLink").hidden = !state.isPlanner;
     const who = $("#whoBtn");
@@ -2462,10 +2473,39 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     $("#foot").textContent = "Places come from the group's Wanderlog trip.";
   }
   setInterval(() => { if (state.tripId && state.plan) renderHeader(); }, 60_000);
-  $("#tripSub").addEventListener("click", async (e) => {
-    if (!e.target.closest("#refreshBtn")) return;
-    try { await requestRefresh(state.tripId, state.plan?.title); } catch (err) { console.error(err); toast("Couldn't ask for a refresh."); }
+  $("#tripSub").addEventListener("click", (e) => { if (e.target.closest("#refreshBtn")) refreshNow(); });
+
+  // Refresh now shows for everyone, since a planner may open a trip link on a device where they only picked a name.
+  // Planners refresh; anyone else is offered Google sign-in right here, and the refresh runs once they're signed in as a
+  // planner (resumeRefresh). sessionStorage keeps the request across signIn's redirect fallback.
+  const REFRESH_AFTER_SIGNIN = "poi.refreshAfterSignIn";
+  const ssGet = (k) => { try { return sessionStorage.getItem(k); } catch (e) { return null; } };
+  const ssSet = (k, v) => { try { sessionStorage.setItem(k, v); } catch (e) {} };
+  const ssDel = (k) => { try { sessionStorage.removeItem(k); } catch (e) {} };
+  const refreshFailed = (err) => { console.error(err); toast("Couldn't ask for a refresh."); };
+  function refreshNow() {
+    if (state.isPlanner) return requestRefresh(state.tripId, state.plan?.title).catch(refreshFailed);
+    const name = myVoter()?.name || state.me?.name;
+    $("#refreshBody").textContent = state.user && !state.user.isAnonymous
+      ? `${state.user.email} isn't on the planner list, so it can't refresh trips. Sign in with a planner's Google account, or ask the trip owner to add you.`
+      : `Only trip planners can refresh a trip. If you're one, sign in with Google and this trip refreshes right after.${name ? ` You'll keep voting as ${name}.` : ""}`;
+    $("#refreshDlg").showModal();
+  }
+  $("#refreshSignIn").addEventListener("click", async () => {
+    $("#refreshDlg").close();
+    const before = auth.currentUser?.uid;
+    ssSet(REFRESH_AFTER_SIGNIN, state.tripId);
+    await signIn(); // a popup, or on some browsers a redirect that comes back to this page
+    if (auth.currentUser?.uid === before) ssDel(REFRESH_AFTER_SIGNIN); // cancelled
   });
+  function resumeRefresh() {
+    const id = ssGet(REFRESH_AFTER_SIGNIN);
+    if (!id || !state.user || state.user.isAnonymous) return;
+    ssDel(REFRESH_AFTER_SIGNIN);
+    if (id !== state.tripId) return;
+    if (!state.isPlanner) return toast(`${state.user.email} isn't on the planner list, so it can't refresh trips.`);
+    requestRefresh(id, state.plan?.title || "this trip").catch(refreshFailed);
+  }
 
   function renderChips() {
     const all = places();

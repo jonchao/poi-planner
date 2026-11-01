@@ -46,7 +46,9 @@ Each trip has:
 - **Reset my votes** (in Who's voting, or after your progress line on All spots on wider screens): clears all your
   ratings and must-gos on the trip, after a confirmation. Your name stays.
 
-The header shows when the trip last refreshed from Wanderlog.
+The header shows when the trip last refreshed from Wanderlog, with **Refresh now**. It works on any device: if that
+browser isn't signed in as a planner (for example, a phone where you only picked your name), it asks you to sign in
+with Google first, then refreshes. Friends who tap it are told only planners can refresh.
 
 ## How it works
 
