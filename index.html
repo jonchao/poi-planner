@@ -1862,6 +1862,9 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     if (!p) return "";
     const s = stats(p);
     const time = it.time ? fmtTime(it.time) + (it.endTime ? `–${fmtTime(it.endTime)}` : "") : "";
+    // A set time on Wanderlog's plan counts as a booking, the same as on the suggested plan (which keeps it at that time).
+    const tag = it.time ? `<span class="badge booked-b">Wanderlog booking</span>` : "";
+    const badges = badgesHTML(p);
     return `<li>
       <span class="it-time">${esc(time)}</span>
       <div class="it-card" data-id="${esc(p.id)}">
@@ -1869,7 +1872,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
         <div class="it-info">
           <button class="pname" type="button" data-goto="${esc(p.id)}">${esc(p.name)}</button>
           ${metaHTML(p, false)}
-          ${badgesHTML(p) ? `<span class="badges">${badgesHTML(p)}</span>` : ""}
+          ${tag || badges ? `<span class="badges">${tag}${badges}</span>` : ""}
           ${it.note ? `<p class="note">${esc(it.note)}</p>` : ""}
         </div>
         <div class="it-score">

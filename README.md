@@ -29,7 +29,8 @@ Each trip has:
     - The first and last days are kept light for travel.
     - Spots rated 3.0–3.9 are listed as optional near each day's route.
     - It updates as people vote.
-  - **Wanderlog's plan**: Wanderlog's own itinerary, every day of the trip.
+  - **Wanderlog's plan**: Wanderlog's own itinerary, every day of the trip. Stops with a set time are marked
+    **Wanderlog booking**, as on the suggested plan.
 - **Find a place** (the search box on All spots and Itinerary): type part of a place's name or type (accents don't
   matter) to see only the matches. On the Itinerary it shows the days each match is on, with its time. The search
   carries over between the two tabs.
