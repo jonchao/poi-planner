@@ -25,12 +25,14 @@ Each trip has:
   - **Suggested plan** (built by `suggest.js`, in the browser) includes every spot the group rates 4.0 or higher, plus every Must go:
     - Days are grouped by area so you can walk between stops. Longer hops show as a car or taxi ride.
     - Each stop is timed to the day's rhythm (coffee, a sight, a late lunch, an afternoon stop, dinner, drinks) for when it's open. Opening hours come from Wanderlog.
-    - Anything on Wanderlog's itinerary keeps its day and time.
+    - Anything on Wanderlog's itinerary keeps its day and time (see below for where the time comes from).
     - The first and last days are kept light for travel.
     - Spots rated 3.0–3.9 are listed as optional near each day's route.
     - It updates as people vote.
   - **Wanderlog's plan**: Wanderlog's own itinerary, every day of the trip. Stops with a set time are marked
-    **Wanderlog booking**, as on the suggested plan.
+    **Wanderlog booking**, as on the suggested plan, and listed in time order (stops without a time and notes stay
+    where they are in Wanderlog). A stop's time is its start time in Wanderlog, or else the time in its booking note
+    ("Reservation at 9:45AM", "booked for 8 pm", "Reserva 19:30").
 - **Find a place** (the search box on All spots and Itinerary): type part of a place's name or type (accents don't
   matter) to see only the matches. On the Itinerary it shows the days each match is on, with its time. The search
   carries over between the two tabs.
