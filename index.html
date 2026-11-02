@@ -1701,6 +1701,48 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     return { level, wd, we, label, cls: level >= 4 ? "res-hi" : level === 3 ? "res-mid" : "res-lo" };
   }
   const wanderlogBooked = (p) => p.notes.some((n) => /^reservation/i.test(n));
+
+  // The time in a booking note ("Reservation at 9:45AM", "booked for 8 pm", "Reserva 19:30") as "HH:MM", or null. Only
+  // times with minutes or AM/PM count, so "for 4 people" isn't one. Without AM/PM, 1 to 6 is the afternoon or evening
+  // (nobody books for 3 AM), and so is any bar booking before noon.
+  function noteTime(text, kind) {
+    if (!/\b(reserv|res\b|booked|booking)/i.test(text || "")) return null;
+    for (const m of text.matchAll(/\b(\d{1,2})(?:[:.h](\d{2}))?\s*(?:([ap])\.?\s?m\b)?/gi)) {
+      let h = Number(m[1]);
+      const min = Number(m[2] || 0), ap = m[3]?.toLowerCase();
+      if (!m[2] && !ap) continue;
+      if (ap) { if (h < 1 || h > 12) continue; h = (h % 12) + (ap === "p" ? 12 : 0); }
+      else if (h >= 1 && h < 12 && (h <= 6 || kind === "bar")) h += 12;
+      if (h > 23 || min > 59) continue;
+      return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+    }
+    return null;
+  }
+  // Wanderlog's day-by-day plan as the Itinerary tab shows it. Each stop's time is its start time on Wanderlog, or else
+  // the time in its booking note (its own, or the place's when it's on just this one day). Each day's timed stops are in
+  // time order; stops without a time and notes stay where Wanderlog has them. The suggested plan, the map's numbers and
+  // the spot cards read stops and times from here.
+  const minutesOf = (t) => { const [h, m] = t.split(":").map(Number); const v = h * 60 + (m || 0); return v < 5 * 60 ? v + 1440 : v; }; // 12:30 AM is late, not early
+  let wanderlogCache = { key: null, days: [] };
+  function wanderlogDays() {
+    if (wanderlogCache.key === state.boardKey) return wanderlogCache.days;
+    const byId = new Map(places().map((p) => [p.id, p]));
+    const days = (state.board.itinerary || []).map((d) => {
+      const items = d.items.map((it) => {
+        const p = it.placeId && byId.get(it.placeId);
+        if (!p || it.time) return it;
+        const time = noteTime(it.note, p.kind) || (p.scheduled.length === 1 ? p.notes.map((n) => noteTime(n, p.kind)).find(Boolean) : null);
+        return time ? { ...it, time } : it;
+      });
+      const timed = items.map((it, k) => (it.placeId && it.time ? k : -1)).filter((k) => k >= 0);
+      const inOrder = timed.map((k) => items[k]).sort((a, b) => minutesOf(a.time) - minutesOf(b.time));
+      timed.forEach((k, j) => { items[k] = inOrder[j]; });
+      return { ...d, items };
+    });
+    wanderlogCache = { key: state.boardKey, days };
+    return days;
+  }
+  const timeOnDay = (id, date) => wanderlogDays().find((d) => d.date === date)?.items.find((it) => it.placeId === id)?.time || null;
   const isBooked = (p) => (state.spots[p.id] && typeof state.spots[p.id].booked === "boolean" ? state.spots[p.id].booked : wanderlogBooked(p));
   // Needs a reservation (Wanderlog level 3+) and nobody has booked it yet.
   const toBook = (p) => !isBooked(p) && !p.closed && (need(p)?.level || 0) >= 3;
@@ -1785,8 +1827,8 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
   function scheduledHTML(p) {
     if (!p.scheduled.length) return "";
     const when = [...p.scheduled].sort((a, b) => a.date.localeCompare(b.date)).map((s) => {
-      const n = dayNum(s.date);
-      return `<span class="sched-day">${n >= 1 ? dayDot(n) : ""}${esc(fmtDay(s.date, { weekday: "short", month: "short", day: "numeric" }) + (s.time ? ` · ${fmtTime(s.time)}` : ""))}</span>`;
+      const n = dayNum(s.date), time = s.time || timeOnDay(p.id, s.date);
+      return `<span class="sched-day">${n >= 1 ? dayDot(n) : ""}${esc(fmtDay(s.date, { weekday: "short", month: "short", day: "numeric" }) + (time ? ` · ${fmtTime(time)}` : ""))}</span>`;
     }).join("");
     return `<p class="sched">On the itinerary:${when}</p>`;
   }
@@ -2082,8 +2124,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
 
   // Wanderlog's own day-by-day plan: every day of the trip (empty ones too), places in Wanderlog's order.
   function renderWanderlogDays() {
-    const b = state.board;
-    const byDate = new Map((b.itinerary || []).map((d) => [d.date, d]));
+    const byDate = new Map(wanderlogDays().map((d) => [d.date, d]));
     const dates = tripDates();
     for (const d of byDate.keys()) if (!dates.includes(d)) dates.push(d);
     dates.sort();
@@ -2139,7 +2180,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
       const s = stats(p);
       return { ...p, avg: Math.round(s.avg * 10) / 10, must: s.tier === "must" };
     });
-    const booked = (state.board.itinerary || []).flatMap((d) => d.items.filter((it) => it.placeId).map((it) => ({ placeId: it.placeId, date: d.date, time: it.time, endTime: it.endTime })));
+    const booked = wanderlogDays().flatMap((d) => d.items.filter((it) => it.placeId).map((it) => ({ placeId: it.placeId, date: d.date, time: it.time, endTime: it.endTime })));
     const key = state.boardKey + "|" + JSON.stringify([dates, input.map((p) => [p.id, p.avg, p.must])]);
     if (suggestCache.key !== key) suggestCache = { key, plan: window.POIPlan.suggest({ dates, places: input, booked }) };
     return suggestCache.plan;
@@ -2301,7 +2342,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     const date = dateOfDay(n);
     const ids = source === "suggested"
       ? (suggestedPlan(tripDates()).days.find((d) => d.date === date)?.stops || []).map((s) => s.id)
-      : (new Map((state.board.itinerary || []).map((d) => [d.date, d])).get(date)?.items || []).map((it) => it.placeId);
+      : (new Map(wanderlogDays().map((d) => [d.date, d])).get(date)?.items || []).map((it) => it.placeId);
     const known = new Set(places().map((p) => p.id));
     const out = new Map();
     for (const id of ids) if (id && known.has(id) && !out.has(id)) out.set(id, out.size + 1);

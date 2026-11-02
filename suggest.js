@@ -273,7 +273,9 @@
       let best = null, budget = 200000; // search steps; plenty for a day's handful of stops
       const chosen = [];
       const used = new Array(items.length).fill(false);
-      const step = (e, prev, prevEnd, cost, waiting) => {
+      // prevBooked: the last stop was a booking too. Bookings back to back stay as booked, even when the visit estimates
+      // say the first runs into the second; only a stop the plan adds may never make you late for one.
+      const step = (e, prev, prevEnd, cost, waiting, prevBooked) => {
         if (best && (cost + Math.max(0, waiting - slotsLeft[e]) * SKIP >= best.cost || --budget < 0)) return;
         if (e === events.length) {
           let total = cost;
@@ -285,9 +287,9 @@
         if (ev.booked) {
           const { f, time, end } = ev.booked;
           const l = prev ? hop(prev, f) : null;
-          if (prev && prevEnd + l.min > time + 5) return; // never late for a booking
+          if (prev && !prevBooked && prevEnd + l.min > time + 5) return; // never late for a booking
           chosen.push({ f, start: time, end, leg: l, booked: true, slot: slotFor(f, time) });
-          step(e + 1, f, end, cost + (l ? l.cost : 0), waiting);
+          step(e + 1, f, end, cost + (l ? l.cost : 0), waiting, true);
           chosen.pop();
           return;
         }
@@ -302,14 +304,21 @@
           if (start === null) continue;
           used[k] = true;
           chosen.push({ f, start, end: start + f.minutes, leg: l, slot: s.key });
-          step(e + 1, f, start + f.minutes, cost + (l ? l.cost : 0) + nudge(s.key, f) + (start - s.at) * 0.02, waiting - 1);
+          step(e + 1, f, start + f.minutes, cost + (l ? l.cost : 0) + nudge(s.key, f) + (start - s.at) * 0.02, waiting - 1, false);
           chosen.pop();
           used[k] = false;
         }
-        step(e + 1, prev, prevEnd, cost, waiting); // or leave this slot free
+        step(e + 1, prev, prevEnd, cost, waiting, prevBooked); // or leave this slot free
       };
-      step(0, null, dayStart[i], 0, items.length);
-      return best || { cost: LOCKED, stops: [], left: items };
+      step(0, null, dayStart[i], 0, items.length, false);
+      if (best) return best;
+      // Out of search steps (never expected): the day's bookings alone, in time order, so they're never dropped.
+      const stops = [];
+      for (const x of [...fixed[i]].sort((a, b) => a.time - b.time)) {
+        const prev = stops[stops.length - 1];
+        stops.push({ f: x.f, start: x.time, end: x.end, leg: prev ? hop(prev.f, x.f) : null, booked: true, slot: slotFor(x.f, x.time) });
+      }
+      return { cost: LOCKED, stops, left: items };
     }
     const hops = new Map();
     const hop = (a, b) => {
