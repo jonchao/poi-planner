@@ -344,6 +344,32 @@ details.walkins p { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
 .visit-check { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 8px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; white-space: nowrap; }
 .visit-check input { width: 15px; height: 15px; margin: 0; accent-color: var(--ok); }
 .visit-check:has(input:checked) { border-color: color-mix(in srgb, var(--ok) 45%, transparent); background: var(--ok-soft); color: var(--ok); }
+/* Reviews after a visit: Days cards show only the overall score; tapping it opens everyone's ratings in a dialog */
+.rev-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 2px; }
+.rev-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--ink); font-size: 13px; }
+.rev-chip b { font-size: 14px; }
+.rev-chip:hover { border-color: var(--accent); }
+.rev-rate { font-size: 13px; color: var(--accent); }
+dialog.rev-dlg { width: min(520px, calc(100vw - 32px)); }
+.rev-dlg h2 { padding-right: 32px; }
+.rev-form { display: grid; gap: 10px; }
+.rev-row { display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: center; gap: 10px; }
+.rev-row.big { grid-template-columns: minmax(0, 1fr); gap: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.rev-label { font-size: 13.5px; font-weight: 600; }
+.rev-label small { display: block; font-size: 11.5px; font-weight: 400; color: var(--muted); }
+.rev-btns { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.rev-row:not(.big) .rate-btn { min-height: 36px; padding: 4px 0; }
+.dlg .rev-legend { margin: 12px 0 14px; font-size: 12.5px; }
+.rev-table-wrap { overflow-x: auto; margin: 0 0 12px; }
+.rev-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.rev-table th, .rev-table td { padding: 7px 5px; border-bottom: 1px solid var(--line); text-align: left; }
+.rev-table thead th { font-size: 11.5px; font-weight: 600; color: var(--muted); vertical-align: bottom; line-height: 1.25; }
+.rev-table .num { text-align: center; font-variant-numeric: tabular-nums; }
+.rev-table tbody th { font-weight: 600; }
+.rev-table tbody th .pdot { margin-right: 6px; }
+.rev-table tbody th small { font-weight: 400; color: var(--muted); }
+.rev-table td.none { color: var(--muted); }
+.rev-table tfoot th, .rev-table tfoot td { font-weight: 700; border-bottom: 0; }
 /* Suggested plan: the same timeline, with walking legs between stops and optional spots after each day */
 .seg { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
 .day-stats { margin: -4px 0 10px; color: var(--muted); font-size: 13.5px; }
@@ -559,6 +585,9 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
   .it-score { grid-column: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
   .it-time small { font-size: 10.5px; white-space: normal; }
   .opt { margin-left: 0; }
+  .rev-table th, .rev-table td { padding: 7px 3px; }
+  .rev-table thead th { font-size: 11px; }
+  .rev-row { grid-template-columns: 96px minmax(0, 1fr); }
 }
 @media (max-width: 359px) { .rate-btn span { display: none; } .rate-legend { display: block; } .votes-list { grid-template-columns: minmax(0, 1fr); } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
@@ -708,6 +737,15 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     <button class="btn" id="shareCopy" type="button">Copy</button>
   </div>
   <div class="dlg-actions" style="margin-top:14px"><button class="btn ghost" type="button" data-close>Done</button></div>
+</dialog>
+
+<!-- Reviews of a visited place: your own (filled in by renderReviewDlg) or everyone's -->
+<dialog class="dlg rev-dlg" id="revDlg" aria-labelledby="revTitle">
+  <button class="icon-btn dlg-close" type="button" data-close aria-label="Close">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </button>
+  <h2 id="revTitle"></h2>
+  <div id="revBody"></div>
 </dialog>
 
 <!-- Confirm / ask: filled in by askDialog() -->
@@ -1315,6 +1353,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     tripUnsubs.push(votersRef().onSnapshot((snap) => {
       state.voters = snap.docs.map((d) => ({ id: d.id, name: d.data().name || d.id, scores: cleanScores(d.data().scores), top: cleanTop(d.data().top),
         visited: d.data().visited && typeof d.data().visited === "object" ? d.data().visited : {},
+        reviews: cleanReviews(d.data().reviews),
         color: Number.isInteger(d.data().color) && d.data().color >= 0 && d.data().color < PERSON_COLORS ? d.data().color : null }));
       assignSlots(state.voters);
       showBanner("");
@@ -1322,6 +1361,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
       scheduleRender();
       state.votersLoaded = true;
       if ($("#whoDlg").open) renderWhoNames();
+      if ($("#revDlg").open) renderReviewDlg();
       greetVoter();
     }, dbError));
     tripUnsubs.push(spotsRef().onSnapshot((snap) => {
@@ -1430,6 +1470,135 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     } catch (e) { box.checked = !on; dbError(e); }
   }
   const visitHTML = (p) => `<label class="visit-check" title="Tick the places you've been"><input type="checkbox" data-visited${isVisited(p.id) ? " checked" : ""}> Visited</label>`;
+
+  /* ---------- Reviews: after a visit, each person rates it overall and on what matters for that kind of place ---------- */
+
+  const REVIEW_WORDS = ["", "Poor", "Meh", "Good", "Great", "Amazing"];
+  // [key, label, hint] for each kind of place; "overall" comes first for every kind.
+  const REVIEW_METRICS = {
+    restaurant: [["food", "Food"], ["service", "Service"], ["ambiance", "Ambiance"], ["value", "Value", "What you got for the price"]],
+    cafe: [["food", "Coffee & food"], ["service", "Service"], ["ambiance", "Ambiance"], ["value", "Value", "What you got for the price"]],
+    bar: [["drinks", "Drinks"], ["service", "Service"], ["ambiance", "Ambiance"], ["value", "Value", "What you got for the price"]],
+    sight: [["experience", "Experience", "How memorable it was"], ["atmosphere", "Atmosphere"], ["ease", "Ease of visit", "Lines, tickets, getting in and around"], ["worth", "Worth the time"]],
+    activity: [["fun", "Fun"], ["organization", "Organization", "How well it was run"], ["atmosphere", "Atmosphere"], ["value", "Value", "What you got for the price"]],
+    market: [["selection", "Selection"], ["atmosphere", "Atmosphere"], ["value", "Value", "Prices for what's on offer"]],
+    area: [["atmosphere", "Atmosphere"], ["walkability", "Walkability"], ["food", "Food & drink"], ["sights", "Things to see"]],
+    other: [["experience", "Experience"], ["value", "Value", "What you got for the price"]],
+  };
+  const reviewMetrics = (p) => REVIEW_METRICS[p.kind] || REVIEW_METRICS.other;
+
+  // { placeId: { overall: 4, food: 5, ... } }, keeping only 1-5 whole numbers.
+  function cleanReviews(raw) {
+    const out = {};
+    for (const [id, r] of Object.entries(raw && typeof raw === "object" ? raw : {})) {
+      const clean = {};
+      for (const [k, v] of Object.entries(r && typeof r === "object" ? r : {})) if (/^[a-z]{2,16}$/.test(k) && Number.isInteger(v) && v >= 1 && v <= 5) clean[k] = v;
+      if (Object.keys(clean).length) out[id] = clean;
+    }
+    return out;
+  }
+  // A review counts while its author has the place ticked as visited (unticking hides it; ticking again brings it back).
+  const reviewOf = (v, id) => (v.visited?.[id] && v.reviews[id]) || null;
+  const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+  function reviewStats(p) {
+    const rows = state.voters.map((v) => ({ v, r: reviewOf(v, p.id) })).filter((x) => x.r);
+    const overall = rows.map((x) => x.r.overall).filter(Boolean);
+    return { rows, count: rows.length, overall: mean(overall), overallN: overall.length };
+  }
+
+  // Saved with the voter like Visited (and, like it, leaves updatedAt alone). Tapping your current score clears it.
+  async function setReview(placeId, key, value) {
+    if (!state.me) return openWho("Pick your name first, then rate the places you've visited.");
+    const clear = myVoter()?.reviews[placeId]?.[key] === value;
+    try {
+      await votersRef().doc(state.me.id).set({
+        ...colorField(),
+        name: myVoter()?.name || state.me.name,
+        reviews: { [placeId]: { [key]: clear ? FV().delete() : value } },
+      }, { merge: true });
+    } catch (e) { dbError(e); }
+  }
+
+  // On a Days card: just the overall score (tap for everyone's ratings), and a way to rate it once you've been.
+  function reviewLineHTML(p) {
+    const rs = reviewStats(p);
+    const out = [];
+    if (rs.count) {
+      out.push(`<button type="button" class="rev-chip" data-reviews="all" title="See how everyone rated it">${rs.overallN ? `Overall <b>${rs.overall.toFixed(1)}</b>` : "Reviews"} · ${rs.count} review${rs.count === 1 ? "" : "s"} <span aria-hidden="true">›</span></button>`);
+    }
+    if (state.me && isVisited(p.id)) {
+      const mine = myVoter()?.reviews[p.id];
+      out.push(`<button type="button" class="link-btn rev-rate" data-reviews="rate">${mine ? `Your review${mine.overall ? `: ${mine.overall}/5` : ""} · Edit` : "Rate your visit"}</button>`);
+    }
+    return out.length ? `<div class="rev-line">${out.join("")}</div>` : "";
+  }
+
+  let reviewFor = null; // { id, mode: "rate" | "all" } while the reviews dialog is open
+  function openReviews(id, mode) {
+    reviewFor = { id, mode };
+    renderReviewDlg();
+    const dlg = $("#revDlg");
+    if (reviewFor && !dlg.open) dlg.showModal();
+  }
+  function renderReviewDlg() {
+    const dlg = $("#revDlg");
+    const p = reviewFor && places().find((x) => x.id === reviewFor.id);
+    if (!p) { reviewFor = null; if (dlg.open) dlg.close(); return; }
+    const me = myVoter();
+    const canRate = !!me && isVisited(p.id);
+    const metrics = reviewMetrics(p);
+    const rs = reviewStats(p);
+    const others = rs.rows.filter((x) => x.v.id !== me?.id).length;
+    const kind = esc(p.category || KINDS[p.kind] || "");
+
+    if (reviewFor.mode === "rate" && canRate) {
+      const mine = me.reviews[p.id] || {};
+      const row = (key, label, hint, big) => `<div class="rev-row${big ? " big" : ""}">
+          <span class="rev-label">${esc(label)}${hint ? `<small>${esc(hint)}</small>` : ""}</span>
+          <div class="rev-btns" role="group" aria-label="${esc(label)}">${[1, 2, 3, 4, 5].map((n) =>
+            `<button type="button" class="rate-btn" data-rev-key="${key}" data-rev-value="${n}" aria-pressed="${mine[key] === n}" aria-label="${esc(label)}: ${n}, ${REVIEW_WORDS[n]}"><b>${n}</b>${big ? `<span>${REVIEW_WORDS[n]}</span>` : ""}</button>`).join("")}</div>
+        </div>`;
+      $("#revTitle").textContent = `Rate ${p.name}`;
+      $("#revBody").innerHTML = `
+        <p>${kind ? `${kind} · ` : ""}Rating as <b>${esc(me.name)}</b>. Each score saves as you tap; tap it again to clear it.</p>
+        <div class="rev-form" style="${personStyle(me)}">
+          ${row("overall", "Overall", "", true)}
+          ${metrics.map(([k, label, hint]) => row(k, label, hint, false)).join("")}
+        </div>
+        <p class="rev-legend">1 poor · 2 meh · 3 good · 4 great · 5 amazing</p>
+        <div class="dlg-actions">
+          ${others ? `<button class="btn ghost" type="button" data-rev-mode="all">See how everyone rated it</button>` : ""}
+          <button class="btn" type="button" data-rev-done>Done</button>
+        </div>`;
+      return;
+    }
+
+    // Everyone's ratings: one row per person, best overall first, and the group's average for each.
+    const cols = [["overall", "Overall"], ...metrics];
+    const rows = [...rs.rows].sort((a, b) => (b.r.overall || 0) - (a.r.overall || 0) || a.v.name.localeCompare(b.v.name));
+    const cell = (x) => (x ? `<td class="num">${x}</td>` : `<td class="num none">–</td>`);
+    const unrated = state.voters.filter((v) => v.visited?.[p.id] && !v.reviews[p.id]).map((v) => v.name);
+    const mine = me && reviewOf(me, p.id);
+    $("#revTitle").textContent = `How everyone rated ${p.name}`;
+    $("#revBody").innerHTML = `
+      <p>${kind ? `${kind} · ` : ""}${rs.overallN ? `Overall <b>${rs.overall.toFixed(1)}</b> from ${rs.overallN} ${rs.overallN === 1 ? "person" : "people"}.` : rs.count ? "No overall scores yet." : "Nobody has rated it yet."}${unrated.length ? ` Also visited, not rated yet: ${esc(unrated.join(", "))}.` : ""}</p>
+      ${rows.length ? `<div class="rev-table-wrap"><table class="rev-table">
+        <thead><tr><th scope="col">Who</th>${cols.map(([, label]) => `<th scope="col" class="num">${esc(label)}</th>`).join("")}</tr></thead>
+        <tbody>${rows.map(({ v, r }) => `<tr><th scope="row">${pdot(v)}${esc(v.name)}${v.id === me?.id ? " <small>(you)</small>" : ""}</th>${cols.map(([k]) => cell(r[k])).join("")}</tr>`).join("")}</tbody>
+        ${rows.length > 1 ? `<tfoot><tr><th scope="row">Average</th>${cols.map(([k]) => { const a = mean(rows.map((x) => x.r[k]).filter(Boolean)); return a ? `<td class="num">${a.toFixed(1)}</td>` : `<td class="num none">–</td>`; }).join("")}</tr></tfoot>` : ""}
+      </table></div>` : ""}
+      <div class="dlg-actions">
+        ${canRate ? `<button class="btn ghost" type="button" data-rev-mode="rate">${mine ? "Edit your review" : "Rate it yourself"}</button>` : ""}
+        <button class="btn" type="button" data-rev-done>Done</button>
+      </div>`;
+  }
+  $("#revDlg").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-rev-key]");
+    if (b && reviewFor) return setReview(reviewFor.id, b.dataset.revKey, Number(b.dataset.revValue));
+    const m = e.target.closest("[data-rev-mode]");
+    if (m && reviewFor) { reviewFor.mode = m.dataset.revMode; return renderReviewDlg(); }
+    if (e.target.closest("[data-rev-done]")) $("#revDlg").close();
+  });
 
   async function saveSpot(placeId, fields) {
     try {
@@ -1874,6 +2043,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
           ${metaHTML(p, false)}
           ${tag || badges ? `<span class="badges">${tag}${badges}</span>` : ""}
           ${it.note ? `<p class="note">${esc(it.note)}</p>` : ""}
+          ${reviewLineHTML(p)}
         </div>
         <div class="it-score">
           ${s.count ? `<span class="avg"><b>${s.avg.toFixed(1)}</b><small>avg</small></span>` : ""}
@@ -1995,6 +2165,7 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
           ${when.length ? `<p class="when">${esc(when.join(" · "))}</p>` : ""}
           ${stop.hours.known ? "" : `<p class="when unknown">Wanderlog doesn't list hours; check before going</p>`}
           ${tags.length || badges ? `<span class="badges">${tags.join("")}${badges}</span>` : ""}
+          ${reviewLineHTML(p)}
         </div>
         <div class="it-score">
           ${s.count ? `<span class="avg"><b>${s.avg.toFixed(1)}</b><small>avg</small></span>` : ""}
@@ -2682,6 +2853,8 @@ dialog.dlg::backdrop { background: rgba(6,16,28,.5); }
     if (mds) return mds.dataset.mapDays === "all" ? setMapHidden(new Set()) : hideAllDays();
     if (e.target.closest("[data-clear-search]")) return setQuery("");
     if (e.target.closest("[data-view-spots]")) { state.view = "spots"; return render(); }
+    const rev = e.target.closest("[data-reviews]");
+    if (rev) return openReviews(rev.closest("[data-id]").dataset.id, rev.dataset.reviews);
     const mode = e.target.closest("[data-days-mode]");
     if (mode) { state.daysMode = mode.dataset.daysMode; lsSet("poi.daysMode", state.daysMode); return render(); }
     const go = e.target.closest("[data-goto]");

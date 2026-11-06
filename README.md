@@ -22,6 +22,17 @@ Each trip has:
 - **Reservations**: what still needs booking, starting with what the group wants. Anyone can mark a place booked.
 - **Itinerary**: two day-by-day plans. Each day has its own color (the same as its pins on the map), and every stop has
   the same Visited box.
+  - **Reviews.** Once you tick Visited, **Rate your visit** opens a short review saved under your name: an **Overall**
+    score plus measures that fit the place, each 1–5:
+    - Restaurants: food, service, ambiance, value
+    - Cafés: coffee & food, service, ambiance, value
+    - Bars: drinks, service, ambiance, value
+    - Museums & sights: experience, atmosphere, ease of visit, worth the time
+    - Activities: fun, organization, atmosphere, value
+    - Markets: selection, atmosphere, value
+    - Neighborhoods: atmosphere, walkability, food & drink, things to see
+  - Each stop shows only the group's overall score. Tap it to see everyone's ratings, with the averages. A review
+    counts while its author has the place ticked as visited.
   - **Suggested plan** (built by `suggest.js`, in the browser) includes every spot the group rates 4.0 or higher, plus every Must go:
     - Days are grouped by area so you can walk between stops. Longer hops show as a car or taxi ride.
     - Each stop is timed to the day's rhythm (coffee, a sight, a late lunch, an afternoon stop, dinner, drinks) for when it's open. Opening hours come from Wanderlog.
@@ -54,7 +65,7 @@ The header shows when the trip last refreshed from Wanderlog.
   - `team/main`: the owner and co-planners (Google emails)
   - `plans/{tripId}`: a trip's title, dates, places, and itinerary
   - `planSources/{tripId}`: the trip's Wanderlog link (planners only)
-  - `rankBoards/{tripId}/voters|spots`: everyone's ratings, must-gos and visited places, and booking notes
+  - `rankBoards/{tripId}/voters|spots`: everyone's ratings, must-gos, visited places and reviews, and booking notes
 
   Trip ids are long and random; knowing a trip's link is what lets someone open it.
   Rules are in `firestore.rules`; `.github/workflows/rules.yml` publishes them whenever they change on main.
